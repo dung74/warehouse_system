@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import categories
+from app.api import categories, products
 from app.models.all_models import Base
 from app.db.session import engine
 
@@ -17,6 +17,7 @@ app.add_middleware(
 )
 
 app.include_router(categories.router, prefix="/api")
+app.include_router(products.router, prefix="/api")
 
 @app.get("/")
 def read_root():
