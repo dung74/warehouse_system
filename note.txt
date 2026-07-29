@@ -1,0 +1,9 @@
+Master Data cơ bản (Categories & Products): Ít phụ thuộc nhất. Bắt đầu với module này để thiết lập luồng chuẩn từ Database -> FastAPI -> ReactJS.
+
+Cấu trúc tổ chức (Warehouses & Roles): Xây dựng danh sách kho và các quyền hạn.
+
+Xác thực & Người dùng (Users & Auth): Tích hợp JWT, phân quyền truy cập cho User theo Role và Warehouse.
+
+Nghiệp vụ cốt lõi (Transactions & Stocks): Module khó nhất. Phải xử lý transaction DB (khi có một Transaction mới thì Stock phải được tự động cộng/trừ tương ứng).
+
+Dashboard & Reports: Thống kê tồn kho, lịch sử giao dịch.

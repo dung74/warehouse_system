@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import categories, products, warehouses, stocks
+from app.api import categories, products, warehouses, stocks, transactions
 from app.models.all_models import Base
 from app.db.session import engine
 
@@ -20,6 +20,7 @@ app.include_router(categories.router, prefix="/api")
 app.include_router(products.router, prefix="/api")
 app.include_router(warehouses.router, prefix="/api")
 app.include_router(stocks.router, prefix="/api")
+app.include_router(transactions.router, prefix="/api")
 
 @app.get("/")
 def read_root():
