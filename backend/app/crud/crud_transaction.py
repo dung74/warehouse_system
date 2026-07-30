@@ -6,7 +6,7 @@ from app.schemas.transaction import TransactionCreate
 def get_transaction(db: Session, skip: int = 0, limit: int = 100):
     return db.query(Transaction).order_by(Transaction.timestamp.desc()).offset(skip).limit(limit).all()
 
-def create_transaction(db: Session, transaction: TransactionCreate):
+def create_transaction(db: Session, transaction: TransactionCreate, user_id: int):
 
     stock = db.query(Stock).filter(
         Stock.product_id == transaction.product_id,
@@ -36,7 +36,7 @@ def create_transaction(db: Session, transaction: TransactionCreate):
         transaction_type=transaction.transaction_type,
         quantity_change=transaction.quantity_change,
         reference_code=transaction.reference_code,
-        user_id=transaction.user_id
+        user_id=user_id
     )
     db.add(db_transaction)
 

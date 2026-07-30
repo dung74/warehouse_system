@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.crud import crud_category
 from app.schemas.category import CategoryCreate, CategoryResponse
 from app.db.session import get_db
+from app.api.deps import get_admin_user
 
 
 router = APIRouter(
@@ -32,7 +33,7 @@ def read_category(category_id: int, db: Session = Depends(get_db)):
     return db_category
 
 @router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_category(category_id: int, db: Session = Depends(get_db)):
+def delete_category(category_id: int, db: Session = Depends(get_db), current_admin = Depends(get_admin_user)):
     db_category = crud_category.get_category(db, category_id=category_id)
     if db_category is None:
         raise HTTPException(status_code=404, detail="Category not found")

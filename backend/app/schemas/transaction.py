@@ -9,7 +9,7 @@ class TransactionBase(BaseModel):
     transaction_type: TransactionType
     quantity_change: int
     reference_code: Optional[str] = None
-    user_id: int
+    # user_id: int
 
 class TransactionCreate(TransactionBase):
     pass

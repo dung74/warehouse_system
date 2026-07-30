@@ -7,6 +7,9 @@ const Categories = () => {
     const [newCategoryName, setNewCategoryName] = useState('');
     const [loading, setLoading] = useState(false);
 
+    const userRole = localStorage.getItem('user_role');
+    const isAdmin = userRole === '1'; // Assuming role_id 1 is for admin
+
     useEffect(() =>{
         fetchCategories();
     }, []);
@@ -96,12 +99,11 @@ const Categories = () => {
                                     {category.name}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
-                                    <button
-                                        onClick={() => handleDelete(category.id)}
-                                        className="text-red-600 hover:text-red-900 font-semibold"
-                                    >
-                                        Xóa
-                                    </button>
+                                    {isAdmin && (
+                                        <button onClick={() => handleDelete(item.id)} className="text-red-500">
+                                            Xóa
+                                        </button>
+                                    )}
                                 </td>
                             </tr>
                         ))}

@@ -2,11 +2,13 @@ import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import Layout from "./pages/Layout";
+import Login from "./pages/Login";
 import Categories from "./pages/Categories";
 import Products from "./pages/Products";
 import Warehouses from "./pages/Warehouses";
 import Stocks from "./pages/Stocks";
 import Transactions from "./pages/Transactions";
+import Users from "./pages/Users";
 
 const Dashboard = () => (
     <div className="animate-fade-in">
@@ -38,28 +40,53 @@ const Dashboard = () => (
     </div>
 );
 
+const ProtectedRoute = ({ children }) => {
+    const token = localStorage.getItem('access_token');
+    
+    if (!token) {
+        return <Navigate to="/login" replace />;
+    }
+    
+    return children;
+};
+
 function App() {
     return (
         <BrowserRouter>
             <Routes>
-                {/* Bọc toàn bộ các route bên trong Layout */}
-                <Route path="/" element={<Layout />}>
-                    
-                    {/* Tự động chuyển hướng từ trang chủ (/) sang (/dashboard) */}
+                {/* Route public không cần đăng nhập */}
+                <Route path="/login" element={<Login />} />
+
+                {/* 
+                    Nhóm các Route được bảo vệ 
+                    Tất cả các route con bên trong sẽ được đi qua ProtectedRoute trước, 
+                    sau đó mới render vào trong Layout.
+                */}
+                <Route 
+                    path="/" 
+                    element={
+                        <ProtectedRoute>
+                            <Layout />
+                        </ProtectedRoute>
+                    }
+                >
+                    {/* Chuyển hướng path gốc "/" vào thẳng "/dashboard" */}
                     <Route index element={<Navigate to="/dashboard" replace />} />
                     
-                    {/* Danh sách các trang con (Sẽ được render vào vị trí <Outlet /> trong Layout) */}
+                    {/* Các trang chức năng của hệ thống */}
                     <Route path="dashboard" element={<Dashboard />} />
                     <Route path="categories" element={<Categories />} />
                     <Route path="products" element={<Products />} />
                     <Route path="warehouses" element={<Warehouses />} />
                     <Route path="stocks" element={<Stocks />} />
                     <Route path="transactions" element={<Transactions />} />
-                    
+                    <Route path="users" element={<Users />} />
                 </Route>
+
+                {/* Catch-all: Nếu nhập linh tinh đường dẫn không tồn tại thì cho về trang chủ */}
+                <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
         </BrowserRouter>
     );
-}
-
+};
 export default App;
