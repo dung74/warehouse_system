@@ -19,3 +19,6 @@ class TransactionResponse(TransactionBase):
     timestamp: datetime
     model_config = ConfigDict(from_attributes=True)
 
+class PaginatedTransactionResponse(BaseModel):
+    total: int
+    items: list[TransactionResponse]

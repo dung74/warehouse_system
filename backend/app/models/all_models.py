@@ -1,6 +1,6 @@
 
 
-from sqlalchemy import Column, Integer , Float, ForeignKey,  String,  Enum as SQLEnum, DateTime
+from sqlalchemy import Column, Integer , Float, ForeignKey, Index,  String,  Enum as SQLEnum, DateTime
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, declarative_base
 import enum
@@ -69,6 +69,15 @@ class Product(Base):
     category = relationship("Category", back_populates="products")
     stocks = relationship("Stock", back_populates="product")
     transactions = relationship("Transaction", back_populates="product")
+
+    __table_args__ = (
+        Index(
+            'ix_product_name_trgm',                  # Tên index
+            'name',                                  # Cột cần đánh index
+            postgresql_using='gin',                  # Dùng cơ chế GIN của Postgres
+            postgresql_ops={'name': 'gin_trgm_ops'}  # Thuật toán Trigram
+        ),
+    )
 
 class Stock(Base):
     __tablename__ = "stocks"

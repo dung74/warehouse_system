@@ -8,3 +8,8 @@ class StockResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
+class PaginatedStockResponse(BaseModel):
+    total: int
+    items: list[StockResponse]
+

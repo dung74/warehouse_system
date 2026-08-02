@@ -1,10 +1,38 @@
-from sqlalchemy.orm import Session
-from app.models.all_models import Transaction, Stock, TransactionType
+
+from datetime import datetime
+
+from sqlalchemy.orm import Session, contains_eager, joinedload
+from app.models.all_models import Transaction, Stock, TransactionType, Product
 from app.schemas.transaction import TransactionCreate
 
 
-def get_transaction(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(Transaction).order_by(Transaction.timestamp.desc()).offset(skip).limit(limit).all()
+def get_transaction(db: Session, 
+                    skip: int = 0, 
+                    limit: int = 100, 
+                    product_name: str = None,
+                    start_date: datetime = None,
+                    end_date: datetime = None
+                ):
+    query = db.query(Transaction)
+
+    if product_name:
+        query = query.join(Product, Transaction.product_id == Product.id)
+        query = query.filter(Product.name.ilike(f"%{product_name}%"))
+
+        query = query.options(contains_eager(Transaction.product))
+    else:
+        query = query.options(joinedload(Transaction.product))
+
+    if start_date:
+        query = query.filter(Transaction.timestamp >= start_date)
+    if end_date:
+        query = query.filter(Transaction.timestamp <= end_date)
+
+    total = query.count()
+    items = query.order_by(Transaction.timestamp.desc()).offset(skip).limit(limit).all()
+
+    return total, items
+
 
 def create_transaction(db: Session, transaction: TransactionCreate, user_id: int):
 
