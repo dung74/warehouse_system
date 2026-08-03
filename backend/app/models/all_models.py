@@ -1,6 +1,6 @@
 
 
-from sqlalchemy import Column, Integer , Float, ForeignKey, Index,  String,  Enum as SQLEnum, DateTime
+from sqlalchemy import Boolean, Column, Integer , Float, ForeignKey, Index,  String,  Enum as SQLEnum, DateTime
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, declarative_base
 import enum
@@ -69,6 +69,8 @@ class Product(Base):
     category = relationship("Category", back_populates="products")
     stocks = relationship("Stock", back_populates="product")
     transactions = relationship("Transaction", back_populates="product")
+
+    is_active = Column(Boolean, default=True, nullable=False)  # Thêm cột is_active
 
     __table_args__ = (
         Index(

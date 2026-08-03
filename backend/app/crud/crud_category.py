@@ -1,5 +1,7 @@
+from fastapi import HTTPException, status
+
 from sqlalchemy.orm import Session
-from app.models.all_models import Category
+from app.models.all_models import Category, Product
 from app.schemas.category import CategoryCreate
 
 
@@ -20,10 +22,18 @@ def create_category(db: Session, category: CategoryCreate):
     db.refresh((db_category))
     return db_category
 
-def delete_category(db: Session, category_id: int):
+def delete_category(db: Session , category_id: int):
     db_category = get_category(db, category_id)
-    if db_category:
-        db.delete(db_category)
-        db.commit()
+    if db_category is None:
+        raise HTTPException(status_code=404, detail = "Category not found")
+    product_count = db.query(Product).filter(Product.category_id == category_id).count()
+    if product_count > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete category with associated products."
+        )
+    
+    db.delete(db_category)
+    db.commit()
 
     return db_category

@@ -34,6 +34,8 @@ def read_category(category_id: int, db: Session = Depends(get_db)):
 
 @router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_category(category_id: int, db: Session = Depends(get_db), current_admin = Depends(get_admin_user)):
+    if not current_admin:
+        raise HTTPException(status_code=403, detail="Not authorized to delete category")
     db_category = crud_category.get_category(db, category_id=category_id)
     if db_category is None:
         raise HTTPException(status_code=404, detail="Category not found")

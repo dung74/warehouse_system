@@ -42,13 +42,36 @@ const Categories = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm("Are you sure you want to delete this category ?")) return;
+        if (!window.confirm("Bạn có chắc chắn muốn xóa danh mục này không?")) return;
 
         try {
             await categoryService.delete(id);
-            fetchCategories();
+            // Backend trả về HTTP_204_NO_CONTENT nên thành công sẽ lọt vào đây
+            alert("Xóa danh mục thành công!");
+            fetchCategories(); // Làm mới lại bảng
+            
         } catch (error) {
             console.error("Error when deleting category:", error);
+            
+            // Xử lý các mã lỗi cụ thể từ Backend
+            if (error.response) {
+                const status = error.response.status;
+                const detail = error.response.data?.detail;
+
+                if (status === 400) {
+                    alert("Không thể xóa danh mục này vì nó đang chứa sản phẩm!");
+                } else if (status === 403) {
+                    alert( "Bạn không có quyền Admin để thực hiện thao tác này!");
+                } else if (status === 404) {
+                    alert( "Không tìm thấy danh mục (có thể đã bị xóa trước đó).");
+                    fetchCategories(); // Làm mới lại bảng vì dữ liệu Frontend đang bị cũ
+                } else {
+                    alert(`Đã xảy ra lỗi: ${detail || "Vui lòng thử lại sau."}`);
+                }
+            } else {
+                // Lỗi khi server sập hoặc mất kết nối mạng
+                alert("Lỗi kết nối đến máy chủ. Vui lòng kiểm tra lại mạng!");
+            }
         }
     };
     return (
@@ -100,7 +123,7 @@ const Categories = () => {
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
                                     {isAdmin && (
-                                        <button onClick={() => handleDelete(item.id)} className="text-red-500">
+                                        <button onClick={() => handleDelete(category.id)} className="text-red-500">
                                             Xóa
                                         </button>
                                     )}

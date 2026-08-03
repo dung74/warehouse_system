@@ -1,364 +1,440 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { transactionService } from '../services/transactionService';
-import { productService } from '../services/productService';
 import { warehouseService } from '../services/warehouseService';
-import { Plus, X, Search, ArrowDownToLine, ArrowUpFromLine, Filter, FileText, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { productService } from '../services/productService'; // Thêm service này để search async
+import { Search, Plus, Calendar, ArrowRightLeft, RefreshCw, ChevronLeft, ChevronRight, CheckCircle2, AlertCircle } from 'lucide-react';
 
 const Transactions = () => {
-    const [transactions, setTransactions] = useState([]);
-    const [products, setProducts] = useState([]);
-    const [warehouses, setWarehouses] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [isFormOpen, setIsFormOpen] = useState(false);
-
-    const [totalRows, setTotalRows] = useState(0);
-    const [refreshTrigger, setRefreshTrigger] = useState(0); // State mới để ép tải lại bảng khi thêm thành công
+    // --- 1. QUẢN LÝ TRẠNG THÁI BẰNG URL ---
+    const [searchParams, setSearchParams] = useSearchParams();
+    
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const productNameParam = searchParams.get('product_name') || '';
+    const startDateParam = searchParams.get('start_date') || '';
+    const endDateParam = searchParams.get('end_date') || '';
+    
     const limit = 10;
 
+    const updateURLParams = (newValues) => {
+        const params = new URLSearchParams(searchParams);
+        Object.keys(newValues).forEach(key => {
+            if (newValues[key]) {
+                params.set(key, newValues[key]);
+            } else {
+                params.delete(key);
+            }
+        });
+        setSearchParams(params);
+    };
 
-    const [currentPage, setCurrentPage] = useState(() =>{
-        const savedPage = sessionStorage.getItem('tx_page');
-        return savedPage ? Number(savedPage) : 1;
-    });
+    // --- 2. STATE DỮ LIỆU BẢNG & BỘ LỌC ---
+    const [transactions, setTransactions] = useState([]);
+    const [totalRows, setTotalRows] = useState(0);
+    const [warehouses, setWarehouses] = useState([]);
+    const [tableSearchInput, setTableSearchInput] = useState(productNameParam);
 
-
-    const [searchInput, setSearchInput] = useState(() => {
-        const savedSearch = sessionStorage.getItem('tx_search');
-        return savedSearch ? JSON.parse(savedSearch) : {
-            product_name: '',
-            start_date: '',
-            end_date: ''
-        };
-    });
-
-    const [filters, setFilters] = useState(() => {
-        const savedFilters = sessionStorage.getItem('tx_filters');
-        return savedFilters ? JSON.parse(savedFilters) : {
-            product_name: '',
-            start_date: '',
-            end_date: ''
-        };
-    });
-    
+    // --- 3. STATE CHO FORM TẠO MỚI & ASYNC SEARCH SẢN PHẨM ---
     const [formData, setFormData] = useState({
-        product_id: '',
         warehouse_id: '',
         transaction_type: 'IN',
         quantity_change: 1,
-        reference_code: '',
-        user_id: 3   // Hardcoded user_id cho demo
+        reference_code: ''
     });
 
-    useEffect(() => {
-        sessionStorage.setItem('tx_page', currentPage);
-    },[currentPage]);
-    
-    useEffect(() => {
-        sessionStorage.setItem('tx_search', JSON.stringify(searchInput));
-    },[searchInput]);
-    
-    useEffect(() => {
-        sessionStorage.setItem('tx_filters', JSON.stringify(filters));
-    }, [filters]);
+    // Async Search States
+    const [productSearchTerm, setProductSearchTerm] = useState('');
+    const [productSuggestions, setProductSuggestions] = useState([]);
+    const [isSearchingProduct, setIsSearchingProduct] = useState(false);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [selectedProduct, setSelectedProduct] = useState(null);
+    const dropdownRef = useRef(null); // Dùng để click ra ngoài thì ẩn dropdown
 
+    // --- 4. EFFECTS ---
+    
+    // Tải danh sách kho
     useEffect(() => {
-        loadDropdownData();
+        warehouseService.getAll().then(setWarehouses).catch(console.error);
     }, []);
 
+    // Debounce cho ô tìm kiếm trong Bảng lịch sử (Cập nhật URL)
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (tableSearchInput !== productNameParam) {
+                updateURLParams({ product_name: tableSearchInput, page: 1 });
+            }
+        }, 500);
+        return () => clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tableSearchInput]);
+
+    // Lắng nghe URL thay đổi để gọi API Bảng giao dịch
     useEffect(() => {
         fetchTransactions();
-    }, [currentPage, filters, refreshTrigger]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams]);
 
-    const loadDropdownData = async () => {
-        try {
-            const [pData, wData] = await Promise.all([
-                productService.getAll(),
-                warehouseService.getAll()
-            ]);
-            setProducts(pData);
-            setWarehouses(wData);
-
-            if (pData.length > 0 && wData.length > 0) {
-                setFormData(prev => ({...prev, product_id: pData[0].id, warehouse_id: wData[0].id}));
+    // **TÍNH NĂNG MỚI: Debounce ASYNC SEARCH Sản phẩm cho Form Tạo mới**
+    useEffect(() => {
+        const fetchSuggestions = async () => {
+            if (productSearchTerm.trim().length < 2) {
+                setProductSuggestions([]);
+                setShowSuggestions(false);
+                return;
             }
-        } catch (error) {
-            console.error('Error loading dropdown data:', error);
-        }
-    };
+            
+            setIsSearchingProduct(true);
+            try {
+                // Gọi API lấy danh sách sản phẩm theo tên/sku đang gõ (chỉ lấy 5 kết quả)
+                const data = await productService.getAll({ name: productSearchTerm, limit: 5 });
+                setProductSuggestions(data.items || data);
+                setShowSuggestions(true);
+            } catch (error) {
+                console.error("Lỗi tìm kiếm sản phẩm:", error);
+            } finally {
+                setIsSearchingProduct(false);
+            }
+        };
 
+        const timer = setTimeout(fetchSuggestions, 400); // Đợi 400ms sau khi ngừng gõ mới gọi API
+        return () => clearTimeout(timer);
+    }, [productSearchTerm]);
+
+    // Ẩn dropdown gợi ý khi click ra ngoài
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setShowSuggestions(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+
+    // --- 5. FUNCTIONS ---
     const fetchTransactions = async () => {
         try {
-            const params = {
-                skip: (currentPage - 1) * limit,
-                limit: limit
-            };
-
-            if (filters.product_name) params.product_name = filters.product_name;
-            if (filters.start_date) params.start_date = filters.start_date + 'T00:00:00';
-            if (filters.end_date) params.end_date = filters.end_date + 'T23:59:59';
+            const params = { skip: (page - 1) * limit, limit: limit };
+            if (productNameParam) params.product_name = productNameParam;
+            if (startDateParam) params.start_date = `${startDateParam}T00:00:00`;
+            if (endDateParam) params.end_date = `${endDateParam}T23:59:59`;
 
             const data = await transactionService.getAll(params);
-            
             setTransactions(data.items || []);
             setTotalRows(data.total || 0);
-
         } catch (error) {
-            console.error('Error fetching transactions:', error);
+            console.error("Lỗi tải giao dịch:", error);
         }
     };
 
-    const handleSearch = (e) => {
-        e.preventDefault();
-        setFilters(searchInput); 
-        setCurrentPage(1); 
+    const handleSelectProduct = (product) => {
+        setSelectedProduct(product);
+        setProductSearchTerm(''); // Xóa text ô input
+        setShowSuggestions(false);
     };
 
-    const handleReset= () => {
-        const emptySearch = { product_name: '', start_date: '', end_date: '' };
-        setSearchInput(emptySearch);
-        setFilters(emptySearch);
-        setCurrentPage(1);
-    };
-
-    const handleSubmit = async (e) => {
+    const handleSubmitTransaction = async (e) => {
         e.preventDefault();
-        setLoading(true);
+        if (!selectedProduct) return alert("Vui lòng tìm và chọn sản phẩm!");
+        if (!formData.warehouse_id) return alert("Vui lòng chọn kho!");
+        if (formData.quantity_change <= 0) return alert("Số lượng phải lớn hơn 0!");
+
         try {
             const payload = {
                 ...formData,
-                product_id: Number(formData.product_id),
-                warehouse_id: Number(formData.warehouse_id),
-                quantity_change: Number(formData.quantity_change),
+                product_id: selectedProduct.id,
+                warehouse_id: parseInt(formData.warehouse_id),
+                quantity_change: parseInt(formData.quantity_change)
             };
             await transactionService.create(payload);
+            alert("Tạo giao dịch thành công!");
             
-            setFormData(prev => ({
-                ...prev,
-                quantity_change: 1,
-                reference_code: ''
-            }));
-            setIsFormOpen(false);
+            // Reset form
+            setFormData({ warehouse_id: '', transaction_type: 'IN', quantity_change: 1, reference_code: '' });
+            setSelectedProduct(null);
             
-            if (currentPage === 1) {
-                setRefreshTrigger(prev => prev + 1); 
-            } else {
-                setCurrentPage(1); 
-            }
-
+            // Đưa về trang 1 để xem giao dịch vừa tạo (Kích hoạt useEffect load lại bảng)
+            updateURLParams({ page: 1 }); 
         } catch (error) {
-            alert(error.response?.data?.detail || 'Lỗi khi tạo giao dịch!');
-        } finally {
-            setLoading(false);
+            alert(error.response?.data?.detail || "Lỗi tạo giao dịch");
         }
     };
 
     const totalPages = Math.ceil(totalRows / limit) || 1;
-    const inputClass = "block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-sm mt-1";
 
     return (
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto bg-gray-50 min-h-screen">
             {/* Header */}
-            <div className="sm:flex sm:items-center sm:justify-between mb-6">
-                <div>
-                    <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Lịch sử Nhập / Xuất Kho</h2>
-                    <p className="mt-1 text-sm text-gray-500">
-                        Quản lý biến động số lượng hàng hóa và kiểm soát tồn kho.
-                    </p>
+            <div className="mb-6 flex items-center gap-3">
+                <div className="p-2 bg-indigo-100 rounded-lg">
+                    <ArrowRightLeft className="h-6 w-6 text-indigo-600" />
                 </div>
-                <div className="mt-4 sm:mt-0">
-                    <button 
-                        onClick={() => setIsFormOpen(!isFormOpen)}
-                        className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-all shadow-sm"
-                    >
-                        {isFormOpen ? <X className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
-                        {isFormOpen ? 'Hủy giao dịch' : 'Tạo Giao dịch mới'}
-                    </button>
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Quản lý Giao dịch</h2>
+                    <p className="mt-1 text-sm text-gray-500">Tạo phiếu Nhập/Xuất kho và xem lịch sử luân chuyển.</p>
                 </div>
             </div>
 
-            {/* Form Tạo Giao dịch (Giữ nguyên) */}
-            {isFormOpen && (
-                <div className="bg-white p-6 shadow-sm ring-1 ring-gray-900/5 rounded-xl mb-6 transition-all">
-                    {/* ... (Đoạn mã Form thêm mới giao dịch giữ nguyên như cũ) ... */}
-                    <h3 className="text-lg font-semibold text-gray-800 border-b border-gray-100 pb-4 mb-4">
-                        Thông tin giao dịch
-                    </h3>
-                    <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <div className="lg:col-span-1">
-                            <label className="block text-sm font-medium text-gray-700">Loại Giao dịch</label>
-                            <select value={formData.transaction_type} onChange={(e) => setFormData({...formData, transaction_type: e.target.value})} className={inputClass}>
-                                <option value="IN">NHẬP KHO (IN)</option>
-                                <option value="OUT">XUẤT KHO (OUT)</option>
-                            </select>
+            {/* === PHẦN 1: FORM TẠO GIAO DỊCH === */}
+            <div className="bg-white p-6 shadow-sm ring-1 ring-gray-900/5 rounded-xl mb-8">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <Plus className="h-5 w-5 mr-2 text-indigo-500" /> Tạo Phiếu Nhập / Xuất
+                </h3>
+                
+                <form onSubmit={handleSubmitTransaction} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Cột Trái: ASYNC SEARCH Sản phẩm */}
+                    <div className="space-y-4">
+                        <div className="relative" ref={dropdownRef}>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">1. Tìm Tên Sản phẩm </label>
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                <input 
+                                    type="text" 
+                                    placeholder="Gõ để tìm kiếm..." 
+                                    value={productSearchTerm}
+                                    onChange={(e) => setProductSearchTerm(e.target.value)}
+                                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                    onFocus={() => { if(productSuggestions.length > 0) setShowSuggestions(true); }}
+                                />
+                                {isSearchingProduct && (
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                        <RefreshCw className="h-4 w-4 text-gray-400 animate-spin" />
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Dropdown Gợi ý */}
+                            {showSuggestions && productSuggestions.length > 0 && (
+                                <ul className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-sm ring-1 ring-black ring-opacity-5 overflow-auto">
+                                    {productSuggestions.map((product) => (
+                                        <li 
+                                            key={product.id}
+                                            onClick={() => handleSelectProduct(product)}
+                                            className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-indigo-50 text-gray-900"
+                                        >
+                                            <span className="block font-medium truncate">{product.name}</span>
+                                            <span className="block text-xs text-gray-500">SKU: {product.sku}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                            
+                            {/* Hiển thị sản phẩm đã chọn */}
+                            {selectedProduct && (
+                                <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md flex items-start">
+                                    <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
+                                    <div>
+                                        <p className="text-sm font-medium text-green-800">{selectedProduct.name}</p>
+                                        <p className="text-xs text-green-600">SKU: {selectedProduct.sku}</p>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => setSelectedProduct(null)}
+                                            className="text-xs text-red-500 hover:text-red-700 mt-1 font-medium"
+                                        >
+                                            Hủy chọn
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                            {!selectedProduct && !productSearchTerm && (
+                                <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-md flex items-center text-gray-500 text-sm">
+                                    <AlertCircle className="h-4 w-4 mr-2" /> Chưa có sản phẩm nào được chọn.
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Cột Phải: Thông tin phiếu */}
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">2. Chọn Kho</label>
+                                <select 
+                                    required
+                                    value={formData.warehouse_id}
+                                    onChange={(e) => setFormData({...formData, warehouse_id: e.target.value})}
+                                    className="block w-full rounded-md border border-gray-300 py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                >
+                                    <option value="">-- Chọn kho --</option>
+                                    {warehouses.map(w => (
+                                        <option key={w.id} value={w.id}>{w.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">3. Loại Giao dịch</label>
+                                <select 
+                                    value={formData.transaction_type}
+                                    onChange={(e) => setFormData({...formData, transaction_type: e.target.value})}
+                                    className="block w-full rounded-md border border-gray-300 py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
+                                >
+                                    <option value="IN">Nhập kho (IN)</option>
+                                    <option value="OUT">Xuất kho (OUT)</option>
+                                </select>
+                            </div>
                         </div>
 
-                        <div className="lg:col-span-2">
-                            <label className="block text-sm font-medium text-gray-700">Sản phẩm</label>
-                            <select value={formData.product_id} onChange={(e) => setFormData({...formData, product_id: e.target.value})} required className={inputClass}>
-                                <option value="" disabled>-- Chọn sản phẩm --</option>
-                                {products.map(p => (<option key={p.id} value={p.id}>{p.sku} - {p.name}</option>))}
-                            </select>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">4. Số lượng</label>
+                                <input 
+                                    type="number" min="1" required
+                                    value={formData.quantity_change}
+                                    onChange={(e) => setFormData({...formData, quantity_change: e.target.value})}
+                                    className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">5. Mã chứng từ (Tùy chọn)</label>
+                                <input 
+                                    type="text" placeholder="VD: PO-2023-01"
+                                    value={formData.reference_code}
+                                    onChange={(e) => setFormData({...formData, reference_code: e.target.value})}
+                                    className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                />
+                            </div>
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Kho hàng</label>
-                            <select value={formData.warehouse_id} onChange={(e) => setFormData({...formData, warehouse_id: e.target.value})} required className={inputClass}>
-                                <option value="" disabled>-- Chọn kho --</option>
-                                {warehouses.map(w => (<option key={w.id} value={w.id}>{w.name}</option>))}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Số lượng</label>
-                            <input type="number" min="1" required value={formData.quantity_change} onChange={(e) => setFormData({...formData, quantity_change: e.target.value})} className={inputClass} />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Mã Phiếu (Tham chiếu)</label>
-                            <input type="text" placeholder="VD: PO-2023-01" value={formData.reference_code} onChange={(e) => setFormData({...formData, reference_code: e.target.value})} className={inputClass} />
-                        </div>
-
-                        <div className="md:col-span-2 lg:col-span-3 flex justify-end gap-3 mt-2">
-                            <button type="button" onClick={() => setIsFormOpen(false)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Hủy</button>
-                            <button type="submit" disabled={loading} className={`inline-flex items-center px-6 py-2 rounded-lg text-white text-sm font-medium ${loading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'}`}>
-                                {loading ? 'Đang xử lý...' : 'Xác nhận Giao dịch'}
+                        <div className="pt-2">
+                            <button 
+                                type="submit" 
+                                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                            >
+                                Xác nhận Tạo Phiếu
                             </button>
                         </div>
-                    </form>
-                </div>
-            )}
-
-            {/* Thanh Công cụ & Lọc */}
-            <div className="bg-white p-4 shadow-sm ring-1 ring-gray-900/5 rounded-xl mb-6">
-                <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4 items-end">
-                    <div className="flex-1 w-full">
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Tìm theo sản phẩm</label>
-                        <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <Search className="h-4 w-4 text-gray-400" />
-                            </div>
-                            <input 
-                                type="text" 
-                                placeholder="Nhập tên hoặc mã SKU..." 
-                                value={searchInput.product_name}
-                                onChange={e => setSearchInput({...searchInput, product_name: e.target.value})}
-                                className="block w-full pl-10 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-                            />
-                        </div>
-                    </div>
-                    <div className="w-full md:w-48">
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Từ ngày</label>
-                        <input 
-                            type="date" 
-                            value={searchInput.start_date}
-                            onChange={e => setSearchInput({...searchInput, start_date: e.target.value})}
-                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-                        />
-                    </div>
-                    <div className="w-full md:w-48">
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Đến ngày</label>
-                        <input 
-                            type="date" 
-                            value={searchInput.end_date}
-                            onChange={e => setSearchInput({...searchInput, end_date: e.target.value})}
-                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-                        />
-                    </div>
-                    
-                    {/* CỤM NÚT LỌC VÀ LÀM MỚI */}
-                    <div className="flex w-full md:w-auto gap-2">
-                        <button type="button" onClick={handleReset} className="flex-1 md:flex-none inline-flex justify-center items-center px-4 py-2 border border-gray-300 bg-white text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors">
-                            <RefreshCw className="mr-2 h-4 w-4 text-gray-500" /> Làm mới
-                        </button>
-                        <button type="submit" className="flex-1 md:flex-none inline-flex justify-center items-center px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors">
-                            <Filter className="mr-2 h-4 w-4" /> Lọc dữ liệu
-                        </button>
                     </div>
                 </form>
             </div>
 
-            {/* Bảng Dữ liệu */}
+            {/* === PHẦN 2: LỊCH SỬ GIAO DỊCH === */}
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Lịch sử Giao dịch</h3>
+            
+            {/* Thanh Bộ Lọc Bảng */}
+            <div className="bg-white p-4 shadow-sm ring-1 ring-gray-900/5 rounded-xl mb-6 flex flex-col md:flex-row gap-4 items-end">
+                <div className="flex-1 w-full">
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Lọc theo Tên SP / SKU</label>
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input 
+                            type="text" placeholder="Gõ để lọc..." 
+                            value={tableSearchInput}
+                            onChange={(e) => setTableSearchInput(e.target.value)}
+                            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                    </div>
+                </div>
+                
+                <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Từ ngày</label>
+                    <div className="relative">
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input 
+                            type="date" 
+                            value={startDateParam}
+                            onChange={(e) => updateURLParams({ start_date: e.target.value, page: 1 })}
+                            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                    </div>
+                </div>
+
+                <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Đến ngày</label>
+                    <div className="relative">
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input 
+                            type="date" 
+                            value={endDateParam}
+                            onChange={(e) => updateURLParams({ end_date: e.target.value, page: 1 })}
+                            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                    </div>
+                </div>
+                
+                <button 
+                    onClick={() => { setTableSearchInput(''); setSearchParams({}); }} 
+                    className="inline-flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
+                >
+                    <RefreshCw className="mr-2 h-4 w-4 text-gray-500" /> Xóa lọc
+                </button>
+            </div>
+
+            {/* Bảng Dữ Liệu */}
             <div className="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-xl overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50/50">
                             <tr>
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Thời gian</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Loại</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Sản phẩm</th>
+                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Loại</th>
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Kho</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Số lượng</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Mã Phiếu</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Mã SP (SKU)</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Sản phẩm</th>
+                                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase">Số lượng</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Chứng từ</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 bg-white">
-                            {transactions.length > 0 ? (
-                                transactions.map((tx) => {
-                                    const product = products.find(p => p.id === tx.product_id);
+                            {transactions.length === 0 ? (
+                                <tr>
+                                    <td colSpan="7" className="px-6 py-12 text-center text-sm text-gray-500">
+                                        Không có giao dịch nào khớp với bộ lọc.
+                                    </td>
+                                </tr>
+                            ) : (
+                                transactions.map(tx => {
                                     const wName = warehouses.find(w => w.id === tx.warehouse_id)?.name || tx.warehouse_id;
-                                    const isNhapkho = tx.transaction_type === 'IN';
-
+                                    const isIn = tx.transaction_type === 'IN';
+                                    
                                     return (
-                                        <tr key={tx.id} className="hover:bg-gray-50/50 transition-colors">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                                {new Date(tx.timestamp).toLocaleString('vi-VN', { hour12: false })}
+                                        <tr key={tx.id} className="hover:bg-gray-50/50">
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {new Date(tx.timestamp).toLocaleString('vi-VN')}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${isNhapkho ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
-                                                    {isNhapkho ? <ArrowDownToLine className="mr-1 h-3 w-3"/> : <ArrowUpFromLine className="mr-1 h-3 w-3"/>}
-                                                    {isNhapkho ? 'NHẬP' : 'XUẤT'}
+                                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                    isIn ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'
+                                                }`}>
+                                                    {isIn ? 'NHẬP' : 'XUẤT'}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                                                {product ? `${product.sku} - ${product.name}` : `ID: ${tx.product_id}`}
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{wName}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">{tx.product?.sku}</td>
+                                            <td className="px-6 py-4 text-sm text-gray-900">{tx.product?.name}</td>
+                                            <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold text-right ${isIn ? 'text-blue-600' : 'text-orange-600'}`}>
+                                                {isIn ? '+' : '-'}{tx.quantity_change.toLocaleString('vi-VN')}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                                {wName}
-                                            </td>
-                                            <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${isNhapkho ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                                {isNhapkho ? '+' : '-'}{tx.quantity_change}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                 {tx.reference_code || '-'}
                                             </td>
                                         </tr>
                                     );
                                 })
-                            ) : (
-                                <tr>
-                                    <td colSpan="6" className="px-6 py-12 text-center">
-                                        <div className="flex flex-col items-center justify-center">
-                                            <div className="bg-gray-100 p-3 rounded-full mb-4">
-                                                <FileText className="h-8 w-8 text-gray-400" />
-                                            </div>
-                                            <h3 className="text-sm font-medium text-gray-900">Không tìm thấy dữ liệu</h3>
-                                            <p className="mt-1 text-sm text-gray-500">Thử làm mới bộ lọc hoặc thêm giao dịch mới.</p>
-                                        </div>
-                                    </td>
-                                </tr>
                             )}
                         </tbody>
                     </table>
                 </div>
-                
-                {/* Phân trang (Pagination) */}
+
+                {/* Phân Trang */}
                 {totalPages > 1 && (
                     <div className="bg-gray-50 px-6 py-3 border-t border-gray-200 flex items-center justify-between">
                         <p className="text-sm text-gray-700">
-                            Đang xem <span className="font-medium">{totalRows === 0 ? 0 : (currentPage - 1) * limit + 1}</span> đến <span className="font-medium">{Math.min(currentPage * limit, totalRows)}</span> trong tổng số <span className="font-medium">{totalRows}</span> kết quả
+                            Hiển thị <span className="font-medium">{(page - 1) * limit + (transactions.length > 0 ? 1 : 0)}</span> đến <span className="font-medium">{Math.min(page * limit, totalRows)}</span> trong số <span className="font-medium">{totalRows}</span> kết quả
                         </p>
-                        <div className="flex gap-2">
+                        <div className="flex items-center gap-2">
                             <button 
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                disabled={currentPage === 1}
-                                className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 cursor-pointer disabled:cursor-not-allowed"
+                                onClick={() => updateURLParams({ page: Math.max(1, page - 1) })}
+                                disabled={page === 1}
+                                className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
                             >
                                 <ChevronLeft className="h-4 w-4 mr-1" /> Trước
                             </button>
+                            <span className="text-sm text-gray-600 px-2">Trang {page} / {totalPages}</span>
                             <button 
-                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                disabled={currentPage === totalPages}
-                                className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 cursor-pointer disabled:cursor-not-allowed"
+                                onClick={() => updateURLParams({ page: Math.min(totalPages, page + 1) })}
+                                disabled={page === totalPages}
+                                className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
                             >
                                 Sau <ChevronRight className="h-4 w-4 ml-1" />
                             </button>
