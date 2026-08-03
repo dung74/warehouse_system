@@ -14,9 +14,7 @@ class WarehouseType(str, enum.Enum):
     CENTRAL = "CENTRAL"
     BRANCH = "BRANCH"
 
-class TransactionType(str, enum.Enum):
-    IN = "IN"
-    OUT = "OUT"
+
 
 class Role(Base):
     __tablename__ = "roles"
@@ -35,7 +33,7 @@ class Warehouse(Base):
     parent = relationship("Warehouse", remote_side=[id], backref="branches")
     users = relationship("User", back_populates="warehouse")
     stocks = relationship("Stock", back_populates="warehouse")
-    transactions = relationship("Transaction", back_populates="warehouse")
+    inventory_transactions = relationship("InventoryTransaction", backref="warehouse")
 
 class User(Base):
     __tablename__ = "users"
@@ -47,7 +45,7 @@ class User(Base):
 
     role = relationship("Role", back_populates="users")
     warehouse = relationship("Warehouse", back_populates="users")
-    transactions = relationship("Transaction", back_populates="user")
+    inventory_transactions = relationship("InventoryTransaction", backref="user")
 
 class Category(Base):
     __tablename__ = "categories"
@@ -68,7 +66,10 @@ class Product(Base):
 
     category = relationship("Category", back_populates="products")
     stocks = relationship("Stock", back_populates="product")
-    transactions = relationship("Transaction", back_populates="product")
+    inventory_ledgers = relationship("InventoryLedger", back_populates="product")
+    transaction_details = relationship("TransactionDetail", back_populates="product")
+
+    
 
     is_active = Column(Boolean, default=True, nullable=False)  # Thêm cột is_active
 
@@ -92,18 +93,53 @@ class Stock(Base):
     warehouse = relationship("Warehouse", back_populates="stocks")
 
 
-class Transaction(Base):
-    __tablename__ = "transactions"
+
+class TxStatus(str, enum.Enum):
+    DRAFT = "DRAFT"
+    APPROVED = "APPROVED"
+    CANCELED = "CANCELED"
+
+class TxType(str, enum.Enum):
+    IN = "IN"
+    OUT = "OUT"
+
+class InventoryTransaction(Base):
+    __tablename__ = "inventory_transactions"
+
     id = Column(Integer, primary_key=True, index=True)
-    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
-    warehouse_id = Column(Integer, ForeignKey("warehouses.id"), nullable=False)
-    transaction_type = Column(SQLEnum(TransactionType), nullable=False)
-    quantity_change = Column(Integer, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    reference_code = Column(String, nullable=True)
-    timestamp = Column(DateTime(timezone=True), default=datetime.now(VN_TZ))
+    warehouse_id = Column(Integer, ForeignKey("warehouses.id"), nullable=False)
+    code = Column(String, unique=True, index = True, nullable=False)
+    transaction_type = Column(SQLEnum(TxType), nullable=False)
+    status = Column(SQLEnum(TxStatus), default=TxStatus.DRAFT, nullable=False)
+    cancellation_reason = Column(String, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(VN_TZ), nullable=False)
 
+    details = relationship("TransactionDetail", back_populates="transaction", cascade="all, delete-orphan")
+    inventory_ledgers = relationship("InventoryLedger", back_populates="transaction", cascade="all, delete-orphan")
 
-    product = relationship("Product", back_populates="transactions")
-    warehouse = relationship("Warehouse", back_populates="transactions")
-    user = relationship("User", back_populates="transactions")
+class TransactionDetail(Base):
+    __tablename__ = "transaction_details"
+
+    id = Column(Integer, primary_key=True, index=True)
+    transaction_id = Column(Integer, ForeignKey("inventory_transactions.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    quantity = Column(Integer, nullable=False)
+
+    transaction = relationship("InventoryTransaction", back_populates="details")
+    product = relationship("Product", back_populates="transaction_details")
+
+class InventoryLedger(Base):
+    __tablename__ = "inventory_ledgers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    transaction_id = Column(Integer, ForeignKey("inventory_transactions.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+
+    change_quantity = Column(Integer, nullable=False)
+    balance_quantity = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(VN_TZ), nullable=False)
+
+    transaction = relationship("InventoryTransaction", back_populates="inventory_ledgers")
+    product = relationship("Product", back_populates="inventory_ledgers")
+

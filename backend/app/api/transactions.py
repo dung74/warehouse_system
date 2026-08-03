@@ -1,49 +1,97 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from app.crud import crud_transaction, crud_product, crud_warehouse
-from app.schemas.transaction import TransactionCreate, TransactionResponse, PaginatedTransactionResponse
-from app.models.all_models import User
-from app.api.deps import get_current_user
+from sqlalchemy.exc import IntegrityError
+from datetime import datetime, timedelta, timezone
+
+from app.crud import crud_transaction, crud_warehouse
 from app.db.session import get_db
-from datetime import datetime
+
+from app.models.all_models import User, TxStatus
+from app.api.deps import get_current_user
+
+from app.schemas.transaction import (
+    InventoryTransactionCreate,
+    InventoryTransactionResponse,
+    PaginatedTransactionResponse,
+    TransactionCancelRequest,
+
+)
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
 
-@router.post("/", response_model=TransactionResponse)
-def create_transaction(transaction: TransactionCreate, db: Session = Depends(get_db),current_user: User = Depends(get_current_user)):
-    # check Product and Warehouse exist
-    product = crud_product.get_product(db, transaction.product_id)
-    if not product:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
-    warehouse = crud_warehouse.get_warehouse(db, transaction.warehouse_id)
+@router.post("/", response_model=InventoryTransactionResponse, status_code=status.HTTP_201_CREATED)
+def create_transaction(
+    schema: InventoryTransactionCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    warehouse = crud_warehouse.get_warehouse(db, schema.warehouse_id)
     if not warehouse:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Warehouse not found")
+
+    try: 
+        return crud_transaction.create_draft_transaction(db, schema, current_user.id)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=" Transaction creation failed due to integrity error.")
     
-    try:
-        return crud_transaction.create_transaction(db, transaction, user_id=current_user.id)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+@router.post("/{transaction_id}/approve", response_model=InventoryTransactionResponse)
+def approve_transaction(
+    transaction_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try: 
+        # if current_user.role.name != "ADMIN": raise HTTPException(...)
+        return crud_transaction.approve_transaction(db, transaction_id)
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+@router.post("/{transaction_id}/cancel", response_model=InventoryTransactionResponse)
+def cancel_transaction(
+    transaction_id: int,
+    payload: TransactionCancelRequest,
+    db: Session = Depends(get_db),
+    currnt_user: User = Depends(get_current_user),
+):
+    try:
+        return crud_transaction.cancel_transaction(db, transaction_id, payload.cancellation_reason)
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
 
 @router.get("/", response_model=PaginatedTransactionResponse)
 def read_transactions(
-    skip: int = 0, 
-    limit: int = 100, 
-    product_name: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 10,
+    status: Optional[TxStatus] = None,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
-    
-    db: Session = Depends(get_db)
-    ):
-    total, items = crud_transaction.get_transaction(
-        db, 
-        skip=skip, 
-        limit=limit, 
-        product_name=product_name, 
-        start_date=start_date, 
-        end_date=end_date
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    try: 
+        total, items = crud_transaction.get_transaction(
+            db=db,
+            skip=skip,
+            limit=limit,
+            status=status,
+            start_date=start_date,
+            end_date=end_date
         )
-    return {"total": total, "items": items}
+        return {"total": total, "items": items}
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

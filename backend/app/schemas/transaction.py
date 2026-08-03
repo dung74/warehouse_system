@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 from typing import Optional 
 from datetime import datetime
-from app.models.all_models import TransactionType
+from app.models.all_models import TxType, TxStatus
 
 
 class ProductShortInfo(BaseModel):
@@ -10,23 +10,43 @@ class ProductShortInfo(BaseModel):
     name: str
     model_config = ConfigDict(from_attributes=True)
 
-class TransactionBase(BaseModel):
+
+
+class TransactionDetailCreate(BaseModel):
     product_id: int
-    warehouse_id: int
-    transaction_type: TransactionType
-    quantity_change: int
-    reference_code: Optional[str] = None
-    # user_id: int
+    quantity: int
 
-class TransactionCreate(TransactionBase):
-    pass
-
-class TransactionResponse(TransactionBase):
+class TransactionDetailResponse(BaseModel):
     id: int
-    timestamp: datetime
-    product: ProductShortInfo
+    product_id: int
+    quantity: int
+
+    product: Optional[ProductShortInfo] = None
+
     model_config = ConfigDict(from_attributes=True)
+
+
+class InventoryTransactionBase(BaseModel):
+
+    transaction_type: TxType
+    warehouse_id: int
+
+class InventoryTransactionCreate(InventoryTransactionBase):
+    details: list[TransactionDetailCreate]
+
+class InventoryTransactionResponse(InventoryTransactionBase):
+    id: int
+    code: str
+    status: TxStatus
+    cancellation_reason: Optional[str] = None
+    created_at: datetime
+    details: list[TransactionDetailResponse]
+
+    model_config = ConfigDict(from_attributes=True)
+
+class TransactionCancelRequest(BaseModel):
+    cancellation_reason: str
 
 class PaginatedTransactionResponse(BaseModel):
     total: int
-    items: list[TransactionResponse]
+    items: list[InventoryTransactionResponse]
