@@ -11,30 +11,29 @@ import Transactions from "./pages/Transactions";
 import Users from "./pages/Users";
 
 const Dashboard = () => (
-    <div className="animate-fade-in">
-        <h2 className="text-2xl font-bold text-slate-800 mb-6">Tổng quan Hệ thống</h2>
+    <div className="space-y-6 animate-fade-in">
+        <div>
+            <h2 className="text-2xl font-bold text-slate-900">Dashboard</h2>
+            <p className="mt-1 text-sm text-slate-500">Warehouse operations at a glance.</p>
+        </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Card 1 */}
-            <div className="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-6 shadow-sm">
-                <h3 className="text-blue-800 font-semibold mb-2 uppercase text-sm tracking-wider">Trạng thái</h3>
+            <div className="rounded-xl border border-blue-100 bg-blue-50 p-6 shadow-sm">
+                <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-blue-800">System status</h3>
                 <div className="flex items-center text-green-600 font-bold text-lg mt-2">
                     <span className="w-3 h-3 bg-green-500 rounded-full mr-3 animate-pulse"></span>
-                    Sẵn sàng hoạt động
+                    Operational
                 </div>
             </div>
 
-            {/* Card 2 */}
-            <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm flex flex-col justify-center items-center transition-transform hover:-translate-y-1 hover:shadow-md">
-                <span className="text-4xl mb-3">📊</span>
-                <p className="text-slate-600 font-semibold">WMS Dashboard</p>
-                <p className="text-slate-400 text-sm mt-1">Hệ thống quản lý kho</p>
+            <div className="flex flex-col justify-center rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                <p className="font-semibold text-slate-700">Warehouse Management</p>
+                <p className="mt-1 text-sm text-slate-400">Products, inventory, and warehouse workflows in one place.</p>
             </div>
 
-            {/* Card 3 (Giữ chỗ) */}
-            <div className="bg-slate-50 border border-slate-200 border-dashed rounded-lg p-6 flex flex-col justify-center items-center opacity-70">
-                <span className="text-3xl mb-3 grayscale">🚀</span>
-                <p className="text-slate-500 font-medium">Tính năng sắp tới...</p>
+            <div className="flex flex-col justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6">
+                <p className="font-medium text-slate-600">Additional insights coming soon</p>
+                <p className="mt-1 text-sm text-slate-400">This area is reserved for future reporting tools.</p>
             </div>
         </div>
     </div>
@@ -54,14 +53,8 @@ function App() {
     return (
         <BrowserRouter>
             <Routes>
-                {/* Route public không cần đăng nhập */}
                 <Route path="/login" element={<Login />} />
 
-                {/* 
-                    Nhóm các Route được bảo vệ 
-                    Tất cả các route con bên trong sẽ được đi qua ProtectedRoute trước, 
-                    sau đó mới render vào trong Layout.
-                */}
                 <Route 
                     path="/" 
                     element={
@@ -70,10 +63,7 @@ function App() {
                         </ProtectedRoute>
                     }
                 >
-                    {/* Chuyển hướng path gốc "/" vào thẳng "/dashboard" */}
                     <Route index element={<Navigate to="/dashboard" replace />} />
-                    
-                    {/* Các trang chức năng của hệ thống */}
                     <Route path="dashboard" element={<Dashboard />} />
                     <Route path="categories" element={<Categories />} />
                     <Route path="products" element={<Products />} />
@@ -83,7 +73,6 @@ function App() {
                     <Route path="users" element={<Users />} />
                 </Route>
 
-                {/* Catch-all: Nếu nhập linh tinh đường dẫn không tồn tại thì cho về trang chủ */}
                 <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
         </BrowserRouter>

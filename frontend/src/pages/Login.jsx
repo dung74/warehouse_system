@@ -25,13 +25,11 @@ const Login = () => {
         }
     };
     return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-100">
-            <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
+        <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
+            <div className="w-full max-w-md space-y-6 rounded-xl bg-white p-8 shadow-lg ring-1 ring-slate-200">
                 <h2 className="text-2xl font-bold text-center text-gray-800">
-                    WMS Đăng Nhập
+                    Sign in to WMS
                 </h2>
-                
-                {/* Hiển thị lỗi nếu có */}
                 {error && (
                     <div className="p-3 text-sm text-red-700 bg-red-100 border border-red-200 rounded">
                         {error}
@@ -39,37 +37,34 @@ const Login = () => {
                 )}
 
                 <form onSubmit={handleLogin} className="space-y-4">
-                    {/* Trường Username */}
                     <div>
                         <label className="block mb-1 text-sm font-medium text-gray-700">
-                            Tên đăng nhập
+                            Username
                         </label>
                         <input
                             type="text"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             className="w-full px-3 py-2 text-gray-700 border rounded focus:outline-none focus:border-blue-500" 
-                            placeholder="Nhập username"
+                            placeholder="Enter your username"
                             required
                         />
                     </div>
                     
-                    {/* Trường Password */}
                     <div>
                         <label className="block mb-1 text-sm font-medium text-gray-700">
-                            Mật khẩu
+                            Password
                         </label>
                         <input
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             className="w-full px-3 py-2 text-gray-700 border rounded focus:outline-none focus:border-blue-500" 
-                            placeholder="Nhập mật khẩu"
+                            placeholder="Enter your password"
                             required
                         />
                     </div>
                     
-                    {/* Nút Submit */}
                     <button
                         type="submit"
                         disabled={loading}
@@ -79,7 +74,7 @@ const Login = () => {
                                 : 'bg-blue-500 hover:bg-blue-600'
                         }`}
                     >
-                        {loading ? 'Đang xác thực...' : 'Đăng nhập'}
+                        {loading ? 'Signing in...' : 'Sign in'}
                     </button>
                 </form>
             </div>

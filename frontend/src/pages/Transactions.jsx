@@ -3,11 +3,6 @@ import { useSearchParams } from 'react-router-dom';
 import { transactionService } from '../services/transactionService';
 import { warehouseService } from '../services/warehouseService';
 import { productService } from '../services/productService';
-import { 
-    Search, Plus, Calendar, ArrowRightLeft, RefreshCw, 
-    ChevronLeft, ChevronRight, CheckCircle, XCircle, 
-    Trash2, AlertCircle, FileText, Check, X, Image as ImageIcon
-} from 'lucide-react';
 
 const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_BASE_URL;
 
@@ -164,8 +159,8 @@ const Transactions = () => {
 
     const handleSubmitDraft = async (e) => {
         e.preventDefault();
-        if (!formData.warehouse_id) return alert("Vui lòng chọn kho!");
-        if (selectedItems.length === 0) return alert("Vui lòng thêm ít nhất 1 sản phẩm vào phiếu!");
+        if (!formData.warehouse_id) return alert("Please select a warehouse.");
+        if (selectedItems.length === 0) return alert("Please add at least one product to the transaction.");
 
         try {
             const payload = {
@@ -178,39 +173,39 @@ const Transactions = () => {
             };
             
             await transactionService.create(payload);
-            alert("Đã tạo phiếu NHÁP thành công!");
+            alert("Draft transaction created successfully.");
             
             setFormData({ warehouse_id: '', transaction_type: 'IN' });
             setSelectedItems([]);
             updateURLParams({ page: 1 }); 
             fetchTransactions();
         } catch (error) {
-            alert(error.response?.data?.detail || "Lỗi tạo phiếu nháp");
+            alert(error.response?.data?.detail || "Unable to create draft transaction.");
         }
     };
 
     // --- 7. FUNCTIONS: DUYỆT / HỦY PHIẾU ---
     const handleApprove = async (transactionId) => {
-        if(!window.confirm("Bạn có chắc chắn muốn DUYỆT phiếu này? Số liệu kho sẽ bị thay đổi.")) return;
+        if(!window.confirm("Are you sure you want to approve this transaction? Inventory quantities will be updated.")) return;
         try {
             await transactionService.approve(transactionId);
-            alert("Đã duyệt phiếu và cập nhật kho thành công!");
+            alert("Transaction approved and inventory updated successfully.");
             fetchTransactions();
         } catch (error) {
-            alert(error.response?.data?.detail || "Lỗi khi duyệt phiếu");
+            alert(error.response?.data?.detail || "Unable to approve transaction.");
         }
     };
 
     const handleCancel = async (transactionId) => {
-        const reason = window.prompt("Vui lòng nhập lý do hủy phiếu:");
+        const reason = window.prompt("Enter a reason for cancellation:");
         if (!reason) return; 
 
         try {
             await transactionService.cancel(transactionId, reason);
-            alert("Đã hủy phiếu thành công!");
+            alert("Transaction canceled successfully.");
             fetchTransactions();
         } catch (error) {
-            alert(error.response?.data?.detail || "Lỗi khi hủy phiếu");
+            alert(error.response?.data?.detail || "Unable to cancel transaction.");
         }
     };
 
@@ -222,7 +217,7 @@ const Transactions = () => {
             setWarehouseDetail(data);
             setIsWarehouseDetailOpen(true);
         } catch (error) {
-            alert(error.response?.data?.detail || "Không thể tải chi tiết kho.");
+            alert(error.response?.data?.detail || "Unable to load warehouse details.");
         } finally {
             setIsLoadingWarehouse(false);
         }
@@ -235,7 +230,7 @@ const Transactions = () => {
             setProductDetail(data);
             setIsProductDetailOpen(true);
         } catch (error) {
-            alert(error.response?.data?.detail || "Không thể tải chi tiết sản phẩm.");
+            alert(error.response?.data?.detail || "Unable to load product details.");
         } finally {
             setIsLoadingProduct(false);
         }
@@ -244,15 +239,15 @@ const Transactions = () => {
     // --- UI HELPERS ---
     const formatPrice = (price) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
     const formatDate = (dateString) => {
-        if (!dateString) return "Không có thông tin";
+        if (!dateString) return "Not available";
         return new Date(dateString).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
     };
 
     const getStatusBadge = (status) => {
         switch (status) {
-            case 'DRAFT': return <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-semibold">BẢN NHÁP</span>;
-            case 'APPROVED': return <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-semibold">ĐÃ DUYỆT</span>;
-            case 'CANCELED': return <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-semibold">ĐÃ HỦY</span>;
+            case 'DRAFT': return <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-semibold">DRAFT</span>;
+            case 'APPROVED': return <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-semibold">APPROVED</span>;
+            case 'CANCELED': return <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-semibold">CANCELED</span>;
             default: return status;
         }
     };
@@ -262,45 +257,40 @@ const Transactions = () => {
     return (
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto bg-gray-50 min-h-screen relative">
             {/* Header */}
-            <div className="mb-6 flex items-center gap-3">
-                <div className="p-2 bg-indigo-100 rounded-lg">
-                    <ArrowRightLeft className="h-6 w-6 text-indigo-600" />
-                </div>
+            <div className="mb-6">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Quản lý Phiếu Kho</h2>
-                    <p className="mt-1 text-sm text-gray-500">Tạo phiếu Nhập/Xuất và theo dõi vòng đời chứng từ.</p>
+                    <h2 className="text-2xl font-bold text-gray-900">Transactions</h2>
+                    <p className="mt-1 text-sm text-gray-500">Create inbound and outbound transactions and track their status.</p>
                 </div>
             </div>
 
             {/* === PHẦN 1: FORM TẠO PHIẾU NHÁP === */}
             <div className="bg-white p-6 shadow-sm ring-1 ring-gray-900/5 rounded-xl mb-8">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                    <Plus className="h-5 w-5 mr-2 text-indigo-500" /> Lập Phiếu Mới (Bản Nháp)
-                </h3>
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Create draft transaction</h3>
                 
                 <form onSubmit={handleSubmitDraft} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Cột 1: Thông tin chung */}
                     <div className="space-y-4 lg:col-span-1">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Loại Giao dịch</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Transaction type</label>
                             <select 
                                 value={formData.transaction_type}
                                 onChange={(e) => setFormData({...formData, transaction_type: e.target.value})}
                                 className="block w-full rounded-md border border-gray-300 py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
                             >
-                                <option value="IN">Nhập kho (IN)</option>
-                                <option value="OUT">Xuất kho (OUT)</option>
+                                <option value="IN">Inbound</option>
+                                <option value="OUT">Outbound</option>
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Chọn Kho</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Warehouse</label>
                             <select 
                                 required
                                 value={formData.warehouse_id}
                                 onChange={(e) => setFormData({...formData, warehouse_id: e.target.value})}
                                 className="block w-full rounded-md border border-gray-300 py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                             >
-                                <option value="">-- Chọn kho --</option>
+                                <option value="">Select a warehouse</option>
                                 {warehouses.map(w => (
                                     <option key={w.id} value={w.id}>{w.name}</option>
                                 ))}
@@ -310,22 +300,16 @@ const Transactions = () => {
 
                     {/* Cột 2 & 3: Chi tiết sản phẩm */}
                     <div className="space-y-4 lg:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Thêm Sản phẩm vào phiếu</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Add products</label>
                         <div className="relative" ref={dropdownRef}>
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                                 <input 
-                                    type="text" placeholder="Gõ tên hoặc SKU để tìm kiếm..." 
+                                    type="text" placeholder="Search by name or SKU" 
                                     value={productSearchTerm}
                                     onChange={(e) => setProductSearchTerm(e.target.value)}
-                                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                    className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                                     onFocus={() => { if(productSuggestions.length > 0) setShowSuggestions(true); }}
                                 />
-                                {isSearchingProduct && (
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                        <RefreshCw className="h-4 w-4 text-gray-400 animate-spin" />
-                                    </div>
-                                )}
                             </div>
 
                             {/* Dropdown Gợi ý */}
@@ -351,9 +335,9 @@ const Transactions = () => {
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                         <tr>
-                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Sản phẩm</th>
-                                            <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 w-32">Số lượng</th>
-                                            <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 w-16">Xóa</th>
+                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Product</th>
+                                            <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 w-32">Quantity</th>
+                                            <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 w-16">Remove</th>
                                         </tr>
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-200">
@@ -379,7 +363,7 @@ const Transactions = () => {
                                                 </td>
                                                 <td className="px-4 py-2 text-center">
                                                     <button type="button" onClick={() => handleRemoveItem(item.product_id)} className="text-red-500 hover:text-red-700">
-                                                        <Trash2 className="h-4 w-4 mx-auto" />
+                                                        Remove
                                                     </button>
                                                 </td>
                                             </tr>
@@ -389,8 +373,7 @@ const Transactions = () => {
                             </div>
                         ) : (
                             <div className="mt-3 p-4 bg-gray-50 border border-dashed border-gray-300 rounded-md flex flex-col items-center justify-center text-gray-500">
-                                <AlertCircle className="h-6 w-6 mb-2 text-gray-400" />
-                                <span className="text-sm">Chưa có sản phẩm nào. Hãy tìm kiếm để thêm vào phiếu.</span>
+                                <span className="text-sm">No products selected. Search to add products to this transaction.</span>
                             </div>
                         )}
 
@@ -399,7 +382,7 @@ const Transactions = () => {
                                 type="submit" 
                                 className="inline-flex items-center justify-center py-2 px-6 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
                             >
-                                <FileText className="h-4 w-4 mr-2" /> Lưu Phiếu Nháp
+                                Save draft
                             </button>
                         </div>
                     </div>
@@ -407,46 +390,44 @@ const Transactions = () => {
             </div>
 
             {/* === PHẦN 2: LỊCH SỬ PHIẾU KHO === */}
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Danh sách Phiếu</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Transaction list</h3>
             
             {/* Thanh Bộ Lọc */}
             <div className="bg-white p-4 shadow-sm ring-1 ring-gray-900/5 rounded-xl mb-6 flex flex-col md:flex-row gap-4 items-end">
                 <div className="flex-1">
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Trạng thái phiếu</label>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
                     <select 
                         value={statusParam}
                         onChange={(e) => updateURLParams({ status: e.target.value, page: 1 })}
                         className="block w-full border border-gray-300 rounded-md py-2 px-3 text-sm focus:ring-indigo-500 focus:border-indigo-500"
                     >
-                        <option value="">Tất cả trạng thái</option>
-                        <option value="DRAFT">Bản nháp (DRAFT)</option>
-                        <option value="APPROVED">Đã duyệt (APPROVED)</option>
-                        <option value="CANCELED">Đã hủy (CANCELED)</option>
+                        <option value="">All statuses</option>
+                        <option value="DRAFT">Draft</option>
+                        <option value="APPROVED">Approved</option>
+                        <option value="CANCELED">Canceled</option>
                     </select>
                 </div>
                 
                 <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Từ ngày</label>
-                    <div className="relative">
-                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <label className="block text-xs font-medium text-gray-500 mb-1">From date</label>
+                    <div>
                         <input 
                             type="date" 
                             value={startDateParam}
                             onChange={(e) => updateURLParams({ start_date: e.target.value, page: 1 })}
-                            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                            className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
                         />
                     </div>
                 </div>
 
                 <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">Đến ngày</label>
-                    <div className="relative">
-                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <label className="block text-xs font-medium text-gray-500 mb-1">To date</label>
+                    <div>
                         <input 
                             type="date" 
                             value={endDateParam}
                             onChange={(e) => updateURLParams({ end_date: e.target.value, page: 1 })}
-                            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                            className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
                         />
                     </div>
                 </div>
@@ -455,7 +436,7 @@ const Transactions = () => {
                     onClick={() => setSearchParams({})} 
                     className="inline-flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
                 >
-                    <RefreshCw className="mr-2 h-4 w-4 text-gray-500" /> Xóa lọc
+                    Clear filters
                 </button>
             </div>
 
@@ -465,23 +446,23 @@ const Transactions = () => {
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50/50">
                             <tr>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Mã phiếu / Thời gian</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Phân loại</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Kho bãi</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Chi tiết mặt hàng</th>
-                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Hành động</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Code / time</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Type</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Warehouse</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Items</th>
+                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 bg-white">
                             {transactions.length === 0 ? (
                                 <tr>
                                     <td colSpan="5" className="px-6 py-12 text-center text-sm text-gray-500">
-                                        Không tìm thấy phiếu nào khớp với bộ lọc.
+                                        No transactions match the selected filters.
                                     </td>
                                 </tr>
                             ) : (
                                 transactions.map(tx => {
-                                    const wName = warehouses.find(w => w.id === tx.warehouse_id)?.name || `Kho #${tx.warehouse_id}`;
+                                    const wName = warehouses.find(w => w.id === tx.warehouse_id)?.name || `Warehouse #${tx.warehouse_id}`;
                                     const isIn = tx.transaction_type === 'IN';
                                     
                                     return (
@@ -497,7 +478,7 @@ const Transactions = () => {
                                                 <div className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold mb-1 ${
                                                     isIn ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-orange-50 text-orange-700 border border-orange-200'
                                                 }`}>
-                                                    {isIn ? 'NHẬP KHO' : 'XUẤT KHO'}
+                                                    {isIn ? 'INBOUND' : 'OUTBOUND'}
                                                 </div>
                                                 <div>{getStatusBadge(tx.status)}</div>
                                             </td>
@@ -530,7 +511,7 @@ const Transactions = () => {
                                                 </div>
                                                 {tx.cancellation_reason && (
                                                     <div className="mt-2 text-xs text-red-600 flex items-center bg-red-50 p-1.5 rounded border border-red-100 w-fit">
-                                                        <AlertCircle className="h-3 w-3 mr-1" /> Lý do hủy: {tx.cancellation_reason}
+                                                        Cancellation reason: {tx.cancellation_reason}
                                                     </div>
                                                 )}
                                             </td>
@@ -542,31 +523,31 @@ const Transactions = () => {
                                                         <>
                                                             <button 
                                                                 onClick={() => handleApprove(tx.id)}
-                                                                title="Duyệt & Cập nhật kho"
-                                                                className="text-white bg-green-500 hover:bg-green-600 p-1.5 rounded-md transition-colors shadow-sm"
+                                                                title="Approve and update inventory"
+                                                                className="text-white bg-green-500 hover:bg-green-600 px-3 py-1.5 text-xs rounded-md transition-colors shadow-sm"
                                                             >
-                                                                <Check className="h-4 w-4" />
+                                                                Approve
                                                             </button>
                                                             <button 
                                                                 onClick={() => handleCancel(tx.id)}
-                                                                title="Hủy phiếu nháp"
-                                                                className="text-white bg-red-500 hover:bg-red-600 p-1.5 rounded-md transition-colors shadow-sm"
+                                                                title="Cancel draft transaction"
+                                                                className="text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 text-xs rounded-md transition-colors shadow-sm"
                                                             >
-                                                                <Trash2 className="h-4 w-4" />
+                                                                Cancel
                                                             </button>
                                                         </>
                                                     )}
                                                     {tx.status === 'APPROVED' && (
                                                         <button 
                                                             onClick={() => handleCancel(tx.id)}
-                                                            title="Báo lỗi / Hủy phiếu đã duyệt"
+                                                            title="Cancel approved transaction"
                                                             className="text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded-md transition-colors flex items-center text-xs"
                                                         >
-                                                            <XCircle className="h-4 w-4 mr-1" /> Hủy phiếu
+                                                            Cancel transaction
                                                         </button>
                                                     )}
                                                     {tx.status === 'CANCELED' && (
-                                                        <span className="text-gray-400 text-xs italic bg-gray-100 px-2 py-1 rounded border border-gray-200">- Đã đóng -</span>
+                                                        <span className="text-gray-400 text-xs italic bg-gray-100 px-2 py-1 rounded border border-gray-200">Closed</span>
                                                     )}
                                                 </div>
                                             </td>
@@ -582,7 +563,7 @@ const Transactions = () => {
                 {totalPages > 1 && (
                     <div className="bg-gray-50 px-6 py-3 border-t border-gray-200 flex items-center justify-between">
                         <p className="text-sm text-gray-700">
-                            Trang <span className="font-medium">{page}</span> / <span className="font-medium">{totalPages}</span>
+                            Page <span className="font-medium">{page}</span> / <span className="font-medium">{totalPages}</span>
                         </p>
                         <div className="flex items-center gap-2">
                             <button 
@@ -590,14 +571,14 @@ const Transactions = () => {
                                 disabled={page === 1}
                                 className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
                             >
-                                <ChevronLeft className="h-4 w-4 mr-1" /> Trước
+                                Previous
                             </button>
                             <button 
                                 onClick={() => updateURLParams({ page: Math.min(totalPages, page + 1) })}
                                 disabled={page === totalPages}
                                 className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
                             >
-                                Sau <ChevronRight className="h-4 w-4 ml-1" />
+                                Next
                             </button>
                         </div>
                     </div>
@@ -608,18 +589,18 @@ const Transactions = () => {
             {isWarehouseDetailOpen && warehouseDetail && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
                     <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-4xl relative max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
-                        <button onClick={() => setIsWarehouseDetailOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 rounded-full p-1 transition-colors">
-                            <X className="h-6 w-6" />
+                        <button onClick={() => setIsWarehouseDetailOpen(false)} className="absolute top-4 right-4 text-sm text-gray-500 hover:text-gray-900 transition-colors">
+                            Close
                         </button>
                         
                         <div className="mb-4 border-b pb-4 shrink-0 pr-8">
                             <h3 className="text-2xl font-bold text-gray-800">{warehouseDetail.name}</h3>
                             <div className="flex gap-2 mt-2">
                                 <span className={`px-2 py-1 text-xs font-semibold rounded ${warehouseDetail.warehouse_type === 'CENTRAL' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                                    {warehouseDetail.warehouse_type === 'CENTRAL' ? 'Kho Tổng' : 'Kho Nhánh'}
+                                    {warehouseDetail.warehouse_type === 'CENTRAL' ? 'Central' : 'Branch'}
                                 </span>
                                 <span className={`px-2 py-1 text-xs font-semibold rounded ${warehouseDetail.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                    {warehouseDetail.is_active ? 'Đang hoạt động' : 'Đã khóa'}
+                                    {warehouseDetail.is_active ? 'Active' : 'Inactive'}
                                 </span>
                             </div>
                         </div>
@@ -628,54 +609,54 @@ const Transactions = () => {
                             {/* Cột trái */}
                             <div className="lg:col-span-1 space-y-6">
                                 <div>
-                                    <h4 className="font-bold text-lg mb-3 text-gray-800">🏢 Cấu trúc kho</h4>
+                                    <h4 className="font-bold text-lg mb-3 text-gray-800">Warehouse structure</h4>
                                     {warehouseDetail.warehouse_type === 'BRANCH' && (
                                         <p className="bg-gray-50 p-3 rounded border border-gray-100">
-                                            <span className="font-medium">Thuộc kho tổng: </span><br/>
+                                            <span className="font-medium">Parent warehouse: </span><br/>
                                             <span className="text-blue-600 font-semibold">{warehouseDetail.parent?.name || `ID #${warehouseDetail.parent_id}`}</span>
                                         </p>
                                     )}
                                     {warehouseDetail.warehouse_type === 'CENTRAL' && (
                                         <div className="bg-gray-50 p-3 rounded border border-gray-100">
-                                            <p className="font-medium mb-2">Kho nhánh ({warehouseDetail.branches?.length || 0}):</p>
+                                            <p className="font-medium mb-2">Branches ({warehouseDetail.branches?.length || 0})</p>
                                             <ul className="space-y-1">
                                                 {warehouseDetail.branches?.length > 0 
                                                     ? warehouseDetail.branches.map(b => (
                                                         <li key={b.id} className="text-gray-700 flex items-center gap-2">
                                                             <span className="w-1.5 h-1.5 bg-blue-400 rounded-full"></span> 
-                                                            {b.name} {!b.is_active && <span className="text-red-500 text-xs">(Đã khóa)</span>}
+                                                            {b.name} {!b.is_active && <span className="text-red-500 text-xs">(Inactive)</span>}
                                                         </li>
                                                     ))
-                                                    : <li className="text-gray-500 italic">Chưa có kho nhánh</li>
+                                                    : <li className="text-gray-500 italic">No branches available</li>
                                                 }
                                             </ul>
                                         </div>
                                     )}
                                 </div>
                                 <div>
-                                    <h4 className="font-bold text-lg mb-3 text-gray-800">👥 Nhân sự ({warehouseDetail.users?.length || 0})</h4>
+                                    <h4 className="font-bold text-lg mb-3 text-gray-800">Staff ({warehouseDetail.users?.length || 0})</h4>
                                     <ul className="space-y-2 max-h-64 overflow-y-auto">
                                         {warehouseDetail.users?.length > 0 ? warehouseDetail.users.map(u => (
                                             <li key={u.id} className="bg-gray-50 p-3 rounded border border-gray-100 flex flex-col">
-                                                <span className="font-semibold text-gray-800">{u.full_name || 'Chưa cập nhật tên'}</span>
-                                                <span className="text-gray-500 text-xs mt-1">{u.email || 'Chưa có email'}</span>
+                                                <span className="font-semibold text-gray-800">{u.full_name || 'Name not available'}</span>
+                                                <span className="text-gray-500 text-xs mt-1">{u.email || 'No email available'}</span>
                                             </li>
-                                        )) : <li className="text-gray-500 italic">Chưa có nhân sự...</li>}
+                                        )) : <li className="text-gray-500 italic">No staff assigned</li>}
                                     </ul>
                                 </div>
                             </div>
                             
                             {/* Cột phải */}
                             <div className="lg:col-span-2">
-                                <h4 className="font-bold text-lg mb-3 text-gray-800">📦 Tồn kho tại đây ({warehouseDetail.stocks?.length || 0} mã)</h4>
+                                <h4 className="font-bold text-lg mb-3 text-gray-800">Inventory at this warehouse ({warehouseDetail.stocks?.length || 0} items)</h4>
                                 <div className="border border-gray-200 rounded-lg overflow-hidden max-h-[400px] flex flex-col">
                                     <div className="overflow-y-auto">
                                         <table className="w-full text-left text-sm">
                                             <thead className="bg-gray-100 text-gray-700 sticky top-0 shadow-sm">
                                                 <tr>
                                                     <th className="p-3 font-semibold">SKU</th>
-                                                    <th className="p-3 font-semibold">Tên Sản Phẩm</th>
-                                                    <th className="p-3 font-semibold text-right">Tồn kho</th>
+                                                    <th className="p-3 font-semibold">Product name</th>
+                                                    <th className="p-3 font-semibold text-right">Quantity</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-gray-100">
@@ -691,7 +672,7 @@ const Transactions = () => {
                                                     ))
                                                 ) : (
                                                     <tr>
-                                                        <td colSpan="3" className="p-8 text-center text-gray-500 bg-white">Kho này hiện đang trống.</td>
+                                                        <td colSpan="3" className="p-8 text-center text-gray-500 bg-white">This warehouse is currently empty.</td>
                                                     </tr>
                                                 )}
                                             </tbody>
@@ -702,7 +683,7 @@ const Transactions = () => {
                         </div>
 
                         <div className="mt-6 pt-4 border-t flex justify-end shrink-0">
-                            <button onClick={() => setIsWarehouseDetailOpen(false)} className="px-6 py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors">Đóng</button>
+                            <button onClick={() => setIsWarehouseDetailOpen(false)} className="px-6 py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors">Close</button>
                         </div>
                     </div>
                 </div>
@@ -712,8 +693,8 @@ const Transactions = () => {
             {isProductDetailOpen && productDetail && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-60 p-4 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl relative overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
-                        <button onClick={() => setIsProductDetailOpen(false)} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-full text-gray-600 z-10 transition-colors">
-                            <X size={18} />
+                        <button onClick={() => setIsProductDetailOpen(false)} className="absolute top-4 right-4 px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded text-gray-600 z-10 transition-colors">
+                            Close
                         </button>
 
                         <div className="flex flex-col md:flex-row overflow-y-auto">
@@ -723,8 +704,7 @@ const Transactions = () => {
                                     <img src={`${IMAGE_BASE_URL}${productDetail.image_path}`} alt={productDetail.name} className="max-w-full max-h-[300px] rounded-lg shadow-sm object-contain" />
                                 ) : (
                                     <div className="text-gray-400 text-center flex flex-col items-center">
-                                        <ImageIcon size={48} className="mb-2 text-gray-300" />
-                                        <p>Chưa có hình ảnh</p>
+                                        <p>No image available</p>
                                     </div>
                                 )}
                             </div>
@@ -736,7 +716,7 @@ const Transactions = () => {
                                     <div className="flex items-center gap-3">
                                         <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">SKU: <span className="font-semibold text-gray-800">{productDetail.sku}</span></span>
                                         <span className={`text-xs px-2 py-1 rounded font-medium ${productDetail.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                            {productDetail.is_active ? 'Đang kinh doanh' : 'Ngừng bán'}
+                                            {productDetail.is_active ? 'Active' : 'Inactive'}
                                         </span>
                                     </div>
                                 </div>
@@ -748,15 +728,15 @@ const Transactions = () => {
                                 <div className="space-y-3 text-sm text-gray-700">
                                     {/* Khối Mô tả */}
                                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                                        <span className="font-semibold block mb-2 text-gray-800">Mô tả sản phẩm:</span>
+                                        <span className="font-semibold block mb-2 text-gray-800">Description</span>
                                         <p className="text-gray-600 whitespace-pre-line leading-relaxed max-h-32 overflow-y-auto custom-scrollbar">
-                                            {productDetail.description || <span className="italic text-gray-400">Không có mô tả.</span>}
+                                            {productDetail.description || <span className="italic text-gray-400">No description available.</span>}
                                         </p>
                                     </div>
                                     
                                     {/* Khối Thuộc tính */}
                                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                                        <span className="font-semibold block mb-2 text-gray-800">Thuộc tính kỹ thuật:</span>
+                                        <span className="font-semibold block mb-2 text-gray-800">Technical specifications</span>
                                         {(() => {
                                             let parsedAttrs = {};
                                             try {
@@ -775,14 +755,14 @@ const Transactions = () => {
                                                     ))}
                                                 </ul>
                                             ) : (
-                                                <span className="italic text-gray-400">Không có thông số kỹ thuật.</span>
+                                                <span className="italic text-gray-400">No technical specifications available.</span>
                                             );
                                         })()}
                                     </div>
 
                                     {/* Ngày tạo */}
                                     <div className="flex justify-between pt-2 px-1">
-                                        <span className="font-semibold text-gray-500">Ngày tạo:</span>
+                                        <span className="font-semibold text-gray-500">Created on</span>
                                         <span className="text-gray-800 font-medium">{formatDate(productDetail.created_at)}</span>
                                     </div>
                                 </div>
@@ -791,7 +771,7 @@ const Transactions = () => {
                         
                         <div className="bg-gray-50 px-6 py-4 flex justify-end border-t border-gray-200 mt-auto">
                             <button onClick={() => setIsProductDetailOpen(false)} className="px-6 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors shadow-sm font-medium">
-                                Đóng cửa sổ
+                                Close
                             </button>
                         </div>
                     </div>

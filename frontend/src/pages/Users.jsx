@@ -126,22 +126,22 @@ const Users = () => {
                 warehouse_id: Number(formData.role_id) === 1 ? null : Number(formData.warehouse_id)
             };
             await userService.create(payload);
-            alert("Tạo tài khoản thành công!");
+            alert("Account created successfully.");
             setFormData({ ...formData, username: '', password: '', full_name: '', email: '' });
             fetchUsers();
         } catch (error) {
-            alert(error.response?.data?.detail || "Lỗi khi tạo tài khoản");
+            alert(error.response?.data?.detail || "Unable to create account.");
         }
     };
 
     const handleDeleteUser = async (userId, username) => {
-        if (window.confirm(`Bạn có chắc chắn muốn vô hiệu hóa tài khoản '${username}'?`)) {
+        if (window.confirm(`Are you sure you want to deactivate account '${username}'?`)) {
             try {
                 const res = await userService.deleteUser(userId);
-                alert(res.detail || "Đã vô hiệu hóa tài khoản thành công!");
+                alert(res.detail || "Account deactivated successfully.");
                 fetchUsers();
             } catch (error) {
-                alert(error.response?.data?.detail || "Không thể vô hiệu hóa tài khoản!");
+                alert(error.response?.data?.detail || "Unable to deactivate account.");
             }
         }
     };
@@ -153,7 +153,7 @@ const Users = () => {
             setSelectedUser(data);
             setIsDetailOpen(true);
         } catch (error) {
-            alert(error.response?.data?.detail || "Không thể lấy thông tin chi tiết!");
+            alert(error.response?.data?.detail || "Unable to load user details.");
         } finally {
             setIsLoadingDetail(false);
         }
@@ -183,21 +183,21 @@ const Users = () => {
                 warehouse_id: Number(editFormData.role_id) === 1 ? null : Number(editFormData.warehouse_id)
             };
             await userService.updateUser(editFormData.id, payload);
-            alert("Cập nhật tài khoản thành công!");
+            alert("Account updated successfully.");
             setIsEditOpen(false);
             fetchUsers();
         } catch (error) {
-            alert(error.response?.data?.detail || "Lỗi khi cập nhật tài khoản");
+            alert(error.response?.data?.detail || "Unable to update account.");
         }
     };
 
     return (
         <div className="space-y-6 relative animate-fade-in">
-            <h2 className="text-2xl font-bold text-gray-800">Quản lý Tài khoản</h2>
+            <h2 className="text-2xl font-bold text-gray-800">Users</h2>
 
             {/* --- FORM TẠO TÀI KHOẢN --- */}
             <div className="p-6 bg-white border border-gray-100 shadow-sm rounded-xl">
-                <h3 className="mb-4 text-lg font-semibold text-gray-700">Tạo tài khoản mới</h3>
+                <h3 className="mb-4 text-lg font-semibold text-gray-700">Create user</h3>
                 <form onSubmit={handleSubmitCreate} className="space-y-4">
                     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                         <div>
@@ -205,11 +205,11 @@ const Users = () => {
                             <input type="text" required className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} />
                         </div>
                         <div>
-                            <label className="block mb-1 text-sm font-medium text-gray-700">Mật khẩu *</label>
+                            <label className="block mb-1 text-sm font-medium text-gray-700">Password *</label>
                             <input type="password" required className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
                         </div>
                         <div>
-                            <label className="block mb-1 text-sm font-medium text-gray-700">Họ và tên</label>
+                            <label className="block mb-1 text-sm font-medium text-gray-700">Full name</label>
                             <input type="text" className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" value={formData.full_name} onChange={(e) => setFormData({ ...formData, full_name: e.target.value })} />
                         </div>
                         <div>
@@ -217,7 +217,7 @@ const Users = () => {
                             <input type="email" className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
                         </div>
                         <div>
-                            <label className="block mb-1 text-sm font-medium text-gray-700">Chức vụ (Role)</label>
+                            <label className="block mb-1 text-sm font-medium text-gray-700">Role</label>
                             <select className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" value={formData.role_id} onChange={(e) => setFormData({ ...formData, role_id: e.target.value })}>
                                 <option value={1}>Admin</option>
                                 <option value={2}>Staff</option>
@@ -225,7 +225,7 @@ const Users = () => {
                         </div>
                         {Number(formData.role_id) === 2 && (
                             <div>
-                                <label className="block mb-1 text-sm font-medium text-gray-700">Trực thuộc Kho</label>
+                                <label className="block mb-1 text-sm font-medium text-gray-700">Assigned warehouse</label>
                                 <select className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" value={formData.warehouse_id} onChange={(e) => setFormData({ ...formData, warehouse_id: e.target.value })}>
                                     {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                                 </select>
@@ -234,7 +234,7 @@ const Users = () => {
                     </div>
                     <div className="flex justify-end pt-2">
                         <button type="submit" className="px-6 py-2 font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">
-                            + Tạo Tài khoản
+                            Create user
                         </button>
                     </div>
                 </form>
@@ -244,30 +244,30 @@ const Users = () => {
             <div className="p-4 bg-white border border-gray-100 shadow-sm rounded-xl">
                 <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4 items-end">
                     <div className="flex-1 w-full">
-                        <label className="block mb-1 text-sm font-medium text-gray-700">Tìm Username</label>
-                        <input type="text" placeholder="Nhập username..." className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" value={filters.username} onChange={(e) => setFilters({ ...filters, username: e.target.value })} />
+                        <label className="block mb-1 text-sm font-medium text-gray-700">Username</label>
+                        <input type="text" placeholder="Search by username" className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" value={filters.username} onChange={(e) => setFilters({ ...filters, username: e.target.value })} />
                     </div>
                     <div className="w-full md:w-48">
-                        <label className="block mb-1 text-sm font-medium text-gray-700">Quyền hạn</label>
+                        <label className="block mb-1 text-sm font-medium text-gray-700">Role</label>
                         <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" value={filters.role_id} onChange={(e) => setFilters({ ...filters, role_id: e.target.value })}>
-                            <option value="">Tất cả</option>
+                            <option value="">All roles</option>
                             <option value="1">Admin</option>
                             <option value="2">Staff</option>
                         </select>
                     </div>
                     <div className="w-full md:w-48">
-                        <label className="block mb-1 text-sm font-medium text-gray-700">Kho bãi</label>
+                        <label className="block mb-1 text-sm font-medium text-gray-700">Warehouse</label>
                         <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" value={filters.warehouse_id} onChange={(e) => setFilters({ ...filters, warehouse_id: e.target.value })}>
-                            <option value="">Tất cả</option>
+                            <option value="">All warehouses</option>
                             {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                         </select>
                     </div>
                     <div className="flex gap-2 w-full md:w-auto">
                         <button type="button" onClick={handleResetFilters} className="px-4 py-2 font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
-                            Làm mới
+                            Reset
                         </button>
                         <button type="submit" className="px-6 py-2 font-medium text-white bg-gray-800 rounded-lg hover:bg-gray-900 transition-colors">
-                            🔍 Lọc
+                            Apply filters
                         </button>
                     </div>
                 </form>
@@ -281,9 +281,9 @@ const Users = () => {
                             <tr>
                                 <th className="px-6 py-4 font-semibold">ID</th>
                                 <th className="px-6 py-4 font-semibold">Username</th>
-                                <th className="px-6 py-4 font-semibold">Quyền hạn</th>
-                                <th className="px-6 py-4 font-semibold">Trạng thái</th>
-                                <th className="px-6 py-4 font-semibold text-center">Hành động</th>
+                                <th className="px-6 py-4 font-semibold">Role</th>
+                                <th className="px-6 py-4 font-semibold">Status</th>
+                                <th className="px-6 py-4 font-semibold text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -298,18 +298,18 @@ const Users = () => {
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={`px-3 py-1 text-xs font-semibold rounded-full ${ u.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }`}>
-                                            {u.is_active ? 'Hoạt động' : 'Đã khóa'}
+                                            {u.is_active ? 'Active' : 'Inactive'}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 flex justify-center gap-2">
                                         <button onClick={() => handleViewDetail(u.id)} className="px-3 py-1 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md">
-                                            👁️ Xem
+                                            View
                                         </button>
                                         <button onClick={() => handleOpenEdit(u)} className="px-3 py-1 text-sm font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-md">
-                                            ✏️ Sửa
+                                            Edit
                                         </button>
                                         <button onClick={() => handleDeleteUser(u.id, u.username)} disabled={!u.is_active} className={`px-3 py-1 text-sm font-medium rounded-md ${ u.is_active ? 'text-red-600 bg-red-50 hover:bg-red-100' : 'text-gray-400 bg-gray-100 cursor-not-allowed' }`}>
-                                            🗑️ Khóa
+                                            Deactivate
                                         </button>
                                     </td>
                                 </tr>
@@ -324,15 +324,15 @@ const Users = () => {
                         disabled={currentPage === 1}
                         className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50"
                     >
-                        ← Trang trước
+                        Previous
                     </button>
-                    <span className="text-sm font-medium text-gray-600">Trang {currentPage}</span>
+                    <span className="text-sm font-medium text-gray-600">Page {currentPage}</span>
                     <button 
                         onClick={() => changePage(currentPage + 1)} 
                         disabled={users.length < limit}
                         className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50"
                     >
-                        Trang sau →
+                        Next
                     </button>
                 </div>
             </div>
@@ -341,17 +341,17 @@ const Users = () => {
             {isDetailOpen && selectedUser && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
                     <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md relative">
-                        <button onClick={() => setIsDetailOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl">✕</button>
-                        <h3 className="text-xl font-bold text-gray-800 mb-6 border-b pb-2">Chi Tiết Nhân Viên #{selectedUser.id}</h3>
+                        <button onClick={() => setIsDetailOpen(false)} className="absolute top-4 right-4 text-sm text-gray-500 hover:text-gray-700">Close</button>
+                        <h3 className="text-xl font-bold text-gray-800 mb-6 border-b pb-2">User details #{selectedUser.id}</h3>
                         <div className="space-y-4 text-sm text-gray-700">
-                            <p><span className="font-semibold">Họ và tên:</span> {selectedUser.full_name || 'N/A'}</p>
+                            <p><span className="font-semibold">Full name:</span> {selectedUser.full_name || 'N/A'}</p>
                             <p><span className="font-semibold">Username:</span> {selectedUser.username}</p>
                             <p><span className="font-semibold">Email:</span> {selectedUser.email || 'N/A'}</p>
-                            <p><span className="font-semibold">Vai trò:</span> {selectedUser.role_id === 1 ? 'Admin' : 'Staff'}</p>
-                            <p><span className="font-semibold">Trạng thái:</span> {selectedUser.is_active ? 'Hoạt động' : 'Đã khóa'}</p>
+                            <p><span className="font-semibold">Role:</span> {selectedUser.role_id === 1 ? 'Admin' : 'Staff'}</p>
+                            <p><span className="font-semibold">Status:</span> {selectedUser.is_active ? 'Active' : 'Inactive'}</p>
                         </div>
                         <div className="mt-6 flex justify-end">
-                            <button onClick={() => setIsDetailOpen(false)} className="px-5 py-2 bg-gray-100 rounded-lg hover:bg-gray-200">Đóng</button>
+                            <button onClick={() => setIsDetailOpen(false)} className="px-5 py-2 bg-gray-100 rounded-lg hover:bg-gray-200">Close</button>
                         </div>
                     </div>
                 </div>
@@ -361,8 +361,8 @@ const Users = () => {
             {isEditOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
                     <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-lg relative animate-fade-in-up">
-                        <button onClick={() => setIsEditOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl">✕</button>
-                        <h3 className="text-xl font-bold text-gray-800 mb-6 border-b pb-2">Cập nhật Tài khoản #{editFormData.id}</h3>
+                        <button onClick={() => setIsEditOpen(false)} className="absolute top-4 right-4 text-sm text-gray-500 hover:text-gray-700">Close</button>
+                        <h3 className="text-xl font-bold text-gray-800 mb-6 border-b pb-2">Update account #{editFormData.id}</h3>
                         
                         <form onSubmit={handleSubmitEdit} className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -371,7 +371,7 @@ const Users = () => {
                                     <input type="text" className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" value={editFormData.username} onChange={(e) => setEditFormData({ ...editFormData, username: e.target.value })} />
                                 </div>
                                 <div>
-                                    <label className="block mb-1 text-sm font-medium text-gray-700">Họ và tên</label>
+                                    <label className="block mb-1 text-sm font-medium text-gray-700">Full name</label>
                                     <input type="text" className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" value={editFormData.full_name} onChange={(e) => setEditFormData({ ...editFormData, full_name: e.target.value })} />
                                 </div>
                                 <div>
@@ -379,7 +379,7 @@ const Users = () => {
                                     <input type="email" className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" value={editFormData.email} onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })} />
                                 </div>
                                 <div>
-                                    <label className="block mb-1 text-sm font-medium text-gray-700">Chức vụ</label>
+                                    <label className="block mb-1 text-sm font-medium text-gray-700">Role</label>
                                     <select className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" value={editFormData.role_id} onChange={(e) => setEditFormData({ ...editFormData, role_id: e.target.value })}>
                                         <option value={1}>Admin</option>
                                         <option value={2}>Staff</option>
@@ -387,7 +387,7 @@ const Users = () => {
                                 </div>
                                 {Number(editFormData.role_id) === 2 && (
                                     <div className="md:col-span-2">
-                                        <label className="block mb-1 text-sm font-medium text-gray-700">Trực thuộc Kho</label>
+                                        <label className="block mb-1 text-sm font-medium text-gray-700">Assigned warehouse</label>
                                         <select className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" value={editFormData.warehouse_id} onChange={(e) => setEditFormData({ ...editFormData, warehouse_id: e.target.value })}>
                                             {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                                         </select>
@@ -395,8 +395,8 @@ const Users = () => {
                                 )}
                             </div>
                             <div className="mt-6 flex justify-end gap-3">
-                                <button type="button" onClick={() => setIsEditOpen(false)} className="px-5 py-2 bg-gray-100 rounded-lg hover:bg-gray-200">Hủy</button>
-                                <button type="submit" className="px-5 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700">Lưu thay đổi</button>
+                                <button type="button" onClick={() => setIsEditOpen(false)} className="px-5 py-2 bg-gray-100 rounded-lg hover:bg-gray-200">Cancel</button>
+                                <button type="submit" className="px-5 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700">Save changes</button>
                             </div>
                         </form>
                     </div>
