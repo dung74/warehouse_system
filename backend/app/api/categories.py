@@ -6,6 +6,7 @@ from app.crud import crud_category
 from app.schemas.category import CategoryCreate, CategoryResponse
 from app.db.session import get_db
 from app.api.deps import get_admin_user
+from app.models.all_models import User
 
 
 router = APIRouter(
@@ -14,7 +15,13 @@ router = APIRouter(
 )
 
 @router.post("/", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
-def create_category(category: CategoryCreate, db: Session = Depends(get_db)):
+def create_category(
+    category: CategoryCreate, 
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_admin_user)
+    ):
+    if not current_admin:
+        raise HTTPException(status_code=403, detail="Not authorized to create category")
     db_category = crud_category.get_category_by_name(db, name=category.name)
     if db_category:
         raise HTTPException(status_code=400, detail="Category name already registered")
@@ -33,7 +40,11 @@ def read_category(category_id: int, db: Session = Depends(get_db)):
     return db_category
 
 @router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_category(category_id: int, db: Session = Depends(get_db), current_admin = Depends(get_admin_user)):
+def delete_category(
+    category_id: int, 
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_admin_user)
+):
     if not current_admin:
         raise HTTPException(status_code=403, detail="Not authorized to delete category")
     db_category = crud_category.get_category(db, category_id=category_id)

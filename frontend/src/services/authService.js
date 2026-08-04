@@ -18,6 +18,8 @@ export const authService = {
         const userInfo = await authService.getCurrentUser();
         localStorage.setItem('user_role', userInfo.role_id);
         localStorage.setItem('username', userInfo.username);
+        localStorage.setItem('full_name', userInfo.full_name);
+        localStorage.setItem('warehouse_id', userInfo.warehouse_id);
         return response.data;
     
     },

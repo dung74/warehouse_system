@@ -37,6 +37,8 @@ def read_users_me(current_user: User = Depends(get_current_user)):
         "id": current_user.id,
         "username": current_user.username,
         "role_id": current_user.role_id,
+        "warehouse_id": current_user.warehouse_id,
+        "full_name": current_user.full_name,
     }
 
 

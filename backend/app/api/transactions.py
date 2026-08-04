@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timedelta, timezone
 
-from app.crud import crud_transaction, crud_warehouse
+from app.crud import crud_transaction, crud_warehouse, crud_user
 from app.db.session import get_db
 
 from app.models.all_models import User, TxStatus
@@ -29,6 +29,9 @@ def create_transaction(
     warehouse = crud_warehouse.get_warehouse(db, schema.warehouse_id)
     if not warehouse:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Warehouse not found")
+    if current_user.role_id != 1 :
+        if current_user.warehouse_id != schema.warehouse_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is not authorized to create transaction for this warehouse")
 
     try: 
         return crud_transaction.create_draft_transaction(db, schema, current_user.id)
@@ -47,7 +50,9 @@ def approve_transaction(
     current_user: User = Depends(get_current_user),
 ):
     try: 
-        # if current_user.role.name != "ADMIN": raise HTTPException(...)
+        # if current_user.role_id != 1:
+        # if current_user.warehouse_id != schema.warehouse_id:
+        #         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is not authorized to approve transaction for this warehouse")
         return crud_transaction.approve_transaction(db, transaction_id)
     except ValueError as e:
         db.rollback()
@@ -61,7 +66,7 @@ def cancel_transaction(
     transaction_id: int,
     payload: TransactionCancelRequest,
     db: Session = Depends(get_db),
-    currnt_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     try:
         return crud_transaction.cancel_transaction(db, transaction_id, payload.cancellation_reason)
@@ -78,6 +83,7 @@ def read_transactions(
     skip: int = 0,
     limit: int = 10,
     status: Optional[TxStatus] = None,
+    warehouse_id : Optional[int] = None,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     db: Session = Depends(get_db),
@@ -89,6 +95,7 @@ def read_transactions(
             skip=skip,
             limit=limit,
             status=status,
+            warehouse_id=warehouse_id,
             start_date=start_date,
             end_date=end_date
         )

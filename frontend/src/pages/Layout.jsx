@@ -8,20 +8,28 @@ const Layout = () => {
     
     const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
-    const userRole = parseInt(localStorage.getItem('user_role') || '2', 10);
+    const userRole = parseInt(localStorage.getItem('user_role') || '2', 10); 
     const isAdmin = userRole === 1;
+    const fullName = localStorage.getItem('full_name') || 'User';
+    const username = localStorage.getItem('username') || 'Unknown';
 
+    // --- XÂY DỰNG MENU ĐỘNG THEO ROLE ---
     const menuItems = [
         { path: '/dashboard', label: 'Dashboard' },
-        { path: '/transactions', label: 'Transactions' },
         { path: '/stocks', label: 'Inventory' },
         { path: '/products', label: 'Products' },
         { path: '/categories', label: 'Categories' },
-        { path: '/warehouses', label: 'Warehouses' },
     ];
     
+    // Nếu là Admin thì thêm Quản lý kho (danh sách) và Quản lý Users
     if (isAdmin) {
+        menuItems.push({ path: '/warehouses', label: 'Warehouses' });
+        menuItems.push({ path: '/transactions', label: 'Transactions' });
         menuItems.push({ path: '/users', label: 'Users' });
+    } else {
+        // Nếu là Manager/User thì trỏ vào đường dẫn Kho của tôi
+        menuItems.push({ path: '/my-warehouse', label: 'My Warehouse' });
+        menuItems.push({ path: '/my-transactions', label: 'My Transactions' });
     }
 
     const handleLogout = () => {
@@ -57,13 +65,14 @@ const Layout = () => {
                 </nav>
 
                 <div className="p-4 border-t border-slate-800">
+                    {/* Hiển thị thông tin thật của User */}
                     <div className="flex items-center px-4 py-3 mb-3 transition-colors rounded-lg bg-slate-800">
-                        <div className="text-sm">
-                            <p className="font-semibold text-white">
-                                {isAdmin ? 'Admin' : 'Staff'}
+                        <div className="text-sm overflow-hidden">
+                            <p className="font-semibold text-white truncate" title={fullName}>
+                                {fullName}
                             </p>
-                            <p className="text-xs text-slate-400">
-                                {isAdmin ? 'Administrator' : 'Warehouse staff'}
+                            <p className="text-xs text-slate-400 truncate">
+                                @{username} • {isAdmin ? 'Administrator' : 'Warehouse staff'}
                             </p>
                         </div>
                     </div>

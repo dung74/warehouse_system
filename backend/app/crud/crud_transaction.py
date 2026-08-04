@@ -14,12 +14,15 @@ def get_transaction(
         skip: int = 0,
         limit: int = 100,
         status: TxStatus = None,
+        warehouse_id: int = None,
         start_date: datetime = None,
         end_date: datetime = None
 ):
     query = db.query(InventoryTransaction).options(
         joinedload(InventoryTransaction.details).joinedload(TransactionDetail.product)
     )
+    if warehouse_id:
+        query = query.filter(InventoryTransaction.warehouse_id == warehouse_id)
 
     if status:
         query = query.filter(InventoryTransaction.status == status)

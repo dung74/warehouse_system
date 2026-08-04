@@ -7,6 +7,10 @@ import { categoryService } from "../services/categoryService";
 const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_BASE_URL;
 
 const Products = () => {
+    // --- LẤY ROLE TỪ LOCAL STORAGE ---
+    const userRole = localStorage.getItem('user_role');
+    const isAdmin = userRole === '1';
+
     const [searchParams, setSearchParams] = useSearchParams();
 
     // Lấy giá trị từ URL hoặc gán mặc định
@@ -125,7 +129,7 @@ const Products = () => {
         const file = e.target.files[0];
         if (file) {
             setSelectedImageFile(file);
-            setImagePreview(URL.createObjectURL(file)); // Hiển thị preview
+            setImagePreview(URL.createObjectURL(file)); 
         }
     };
 
@@ -151,6 +155,7 @@ const Products = () => {
     };
 
     const handleEditClick = (product) => {
+        if (!isAdmin) return;
         setFormData({ 
             sku: product.sku, name: product.name, 
             category_id: product.category_id, base_price: product.base_price,
@@ -175,6 +180,8 @@ const Products = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!isAdmin) return;
+
         const parsedAttributes = {};
         attributeRows.forEach(row => {
             if (row.key.trim() !== "") parsedAttributes[row.key.trim()] = row.value.trim();
@@ -184,13 +191,11 @@ const Products = () => {
         try {
             let finalImagePath = formData.image_path;
 
-            // BƯỚC 1: Nếu có ảnh mới được chọn -> Upload ảnh trước
             if (selectedImageFile) {
                 const uploadRes = await uploadService.uploadFile(selectedImageFile);
                 finalImagePath = uploadRes.image_path; 
             }
 
-            // BƯỚC 2: Gọi API Tạo/Cập nhật Sản phẩm
             const payload = { 
                 ...formData, 
                 category_id: Number(formData.category_id), 
@@ -225,6 +230,7 @@ const Products = () => {
     };
 
     const handleDelete = async (id) => {
+        if (!isAdmin) return;
         if (!window.confirm("Are you sure you want to move this product to the trash?")) return;
         try {
             await productService.delete(id); 
@@ -234,6 +240,7 @@ const Products = () => {
     };
 
     const handleRestore = async (id) => {
+        if (!isAdmin) return;
         if (!window.confirm("Restore this product to make it available again?")) return;
         try {
             await productService.restore(id); 
@@ -251,29 +258,31 @@ const Products = () => {
     const inputClass = "block w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-sm transition-colors mt-1 bg-white";
 
     return (
-        <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto bg-gray-50 min-h-screen relative">
+        <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto bg-gray-50 min-h-screen relative animate-fade-in">
             
             <div className="sm:flex sm:items-center sm:justify-between mb-6">
                 <div>
                     <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Products</h2>
                 </div>
-                <div className="mt-4 sm:mt-0">
-                    <button 
-                        onClick={() => {
-                            if (!isFormOpen && filterIsActive !== 'true') setFilterIsActive('true'); 
-                            isFormOpen ? resetForm() : setIsFormOpen(true);
-                        }} 
-                        className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 shadow-sm transition-colors"
-                    >
-                        {isFormOpen ? 'Cancel' : 'Add product'}
-                    </button>
-                </div>
+                {/* CHỈ HIỂN THỊ NÚT THÊM NẾU LÀ ADMIN */}
+                {isAdmin && (
+                    <div className="mt-4 sm:mt-0">
+                        <button 
+                            onClick={() => {
+                                if (!isFormOpen && filterIsActive !== 'true') setFilterIsActive('true'); 
+                                isFormOpen ? resetForm() : setIsFormOpen(true);
+                            }} 
+                            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 shadow-sm transition-colors"
+                        >
+                            {isFormOpen ? 'Cancel' : 'Add product'}
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* BỘ LỌC VÀ TÌM KIẾM */}
             <div className="bg-white p-4 shadow-sm ring-1 ring-gray-900/5 rounded-xl mb-6">
                 <form onSubmit={handleSearchSubmit} className="flex flex-col lg:flex-row gap-4">
-                    {/* ... (GIỮ NGUYÊN FORM LỌC CỦA BẠN) ... */}
                     <div className="flex-1 relative">
                         <input type="text" placeholder="Search by product name" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} className="block w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500" />
                     </div>
@@ -301,16 +310,14 @@ const Products = () => {
                 </form>
             </div>
             
-            {/* THÊM SỬA SẢN PHẨM */}
-            {isFormOpen && (
+            {/* THÊM SỬA SẢN PHẨM (CHỈ DÀNH CHO ADMIN) */}
+            {isAdmin && isFormOpen && (
                 <div className="bg-white p-6 shadow-sm ring-1 ring-gray-900/5 rounded-xl mb-8 border-t-4 border-blue-500 animate-fade-in-up">
                     <div className="border-b border-gray-100 pb-4 mb-4">
                         <h3 className="text-lg font-semibold text-gray-800">{editingId ? `Update product: ${formData.sku}` : 'Add product'}</h3>
                     </div>
                     
                     <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                        
-                        {/* Cột trái (Thông tin cơ bản) */}
                         <div className="md:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700">SKU</label>
@@ -332,14 +339,12 @@ const Products = () => {
                                 <input type="number" name="base_price" value={formData.base_price} onChange={handleInputChange} required className={inputClass} />
                             </div>
                             
-                            {/* Khối textarea mô tả */}
                             <div className="md:col-span-2">
                                 <label className="block text-sm font-medium text-gray-700">Description</label>
                                 <textarea name="description" value={formData.description} onChange={handleInputChange} rows="3" placeholder="Enter a detailed description" className={`${inputClass} resize-none`}></textarea>
                             </div>
                         </div>
 
-                        {/* Cột phải (Hình ảnh) */}
                         <div className="md:col-span-4 flex flex-col gap-2">
                             <label className="block text-sm font-medium text-gray-700">Product image</label>
                             <div className="flex-1 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center bg-gray-50 overflow-hidden relative min-h-[160px] p-2">
@@ -359,7 +364,6 @@ const Products = () => {
                             />
                         </div>
 
-                        {/* Khối Thuộc tính */}
                         <div className="md:col-span-12 bg-gray-50/50 p-4 rounded-lg border border-gray-100 mt-2">
                             <label className="block text-sm font-medium text-gray-800 mb-3">Additional attributes</label>
                             <div className="space-y-3">
@@ -382,7 +386,6 @@ const Products = () => {
                             </div>
                         </div>
 
-                        {/* Nút lưu */}
                         <div className="md:col-span-12 flex justify-end gap-3 pt-2">
                             <button type="button" onClick={resetForm} className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">Cancel</button>
                             <button type="submit" disabled={loading} className={`inline-flex items-center px-6 py-2 rounded-lg text-white text-sm font-medium ${loading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'}`}>
@@ -404,7 +407,7 @@ const Products = () => {
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Product</th>
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Category</th>
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Price</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Attributes</th>
+                                {/* <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Attributes</th> */}
                                 <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
                             </tr>
                         </thead>
@@ -412,13 +415,12 @@ const Products = () => {
                             {products.length > 0 ? (
                                 products.map((product) => {
                                     const cat = categories.find(c => c.id === product.category_id);
-                                    let attrObj = {};
-                                    try { attrObj = typeof product.attributes === 'string' ? JSON.parse(product.attributes) : (product.attributes || {}); } catch(e) {}
+                                    // let attrObj = {};
+                                    // try { attrObj = typeof product.attributes === 'string' ? JSON.parse(product.attributes) : (product.attributes || {}); } catch(e) {}
 
                                     return (
                                         <tr key={product.id} className={`hover:bg-gray-50/50 ${!product.is_active ? 'bg-red-50/30 opacity-70' : ''}`}>
                                             
-                                            {/* Ô Ảnh Mới */}
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 {product.image_path ? (
                                                     <img src={`${IMAGE_BASE_URL}${product.image_path}`} alt={product.name} className="h-10 w-10 rounded-md object-cover border border-gray-200" />
@@ -440,7 +442,7 @@ const Products = () => {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-emerald-600">{formatPrice(product.base_price)}</td>
-                                            <td className="px-6 py-4 text-sm max-w-xs">
+                                            {/* <td className="px-6 py-4 text-sm max-w-xs">
                                                 <div className="flex flex-wrap gap-1.5">
                                                     {Object.entries(attrObj).length > 0 ? (
                                                         Object.entries(attrObj).map(([key, value], idx) => (
@@ -450,27 +452,30 @@ const Products = () => {
                                                         ))
                                                     ) : <span className="text-gray-400 italic text-xs">-</span>}
                                                 </div>
-                                            </td>
+                                            </td> */}
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                 
-                                                {/* Nút Xem Chi tiết */}
+                                                {/* Nút Xem Chi tiết (Cho phép mọi role truy cập) */}
                                                 <button onClick={() => handleViewDetail(product.id)} className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-md mr-2 transition-colors">
                                                     View
                                                 </button>
 
-                                                {product.is_active ? (
-                                                    <>
-                                                        <button onClick={() => handleEditClick(product)} className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-md mr-2 transition-colors">
-                                                            Edit
+                                                {/* Nút Sửa, Xóa, Khôi phục (CHỈ ADMIN) */}
+                                                {isAdmin && (
+                                                    product.is_active ? (
+                                                        <>
+                                                            <button onClick={() => handleEditClick(product)} className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-md mr-2 transition-colors">
+                                                                Edit
+                                                            </button>
+                                                            <button onClick={() => handleDelete(product.id)} className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-md transition-colors">
+                                                                Delete
+                                                            </button>
+                                                        </>
+                                                    ) : (
+                                                        <button onClick={() => handleRestore(product.id)} className="text-emerald-700 hover:text-emerald-900 bg-emerald-100 hover:bg-emerald-200 px-3 py-1.5 rounded-md transition-colors">
+                                                            Restore
                                                         </button>
-                                                        <button onClick={() => handleDelete(product.id)} className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-md transition-colors">
-                                                            Delete
-                                                        </button>
-                                                    </>
-                                                ) : (
-                                                    <button onClick={() => handleRestore(product.id)} className="text-emerald-700 hover:text-emerald-900 bg-emerald-100 hover:bg-emerald-200 px-3 py-1.5 rounded-md transition-colors">
-                                                        Restore
-                                                    </button>
+                                                    )
                                                 )}
                                             </td>
                                         </tr>
@@ -517,9 +522,10 @@ const Products = () => {
                 )}
             </div>
 
+            {/* MODAL CHI TIẾT SẢN PHẨM */}
             {isDetailOpen && selectedProduct && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl relative overflow-hidden flex flex-col max-h-[90vh]">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl relative overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
                         <button onClick={() => setIsDetailOpen(false)} className="absolute top-4 right-4 px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded text-gray-600 z-10 transition-colors">
                             Close
                         </button>

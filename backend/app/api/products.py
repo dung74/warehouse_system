@@ -5,6 +5,8 @@ from sqlalchemy.orm import  Session
 from app.crud import crud_product, crud_category
 from app.schemas.product import ProductCreate, ProductResponse, ProductUpdate, PaginatedProductResponse
 from app.db.session import get_db
+from app.api.deps import get_admin_user
+from app.models.all_models import User
 
 
 router = APIRouter(
@@ -13,8 +15,14 @@ router = APIRouter(
 )
 
 @router.post("/", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
-def create_product(product: ProductCreate, db: Session = Depends(get_db)):
-
+def create_product(
+    product: ProductCreate, 
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_admin_user)
+    ):
+    if not current_admin:
+        raise HTTPException(status_code=403, detail="Not authorized to create product")
+    
     if crud_product.get_product_by_sku(db, sku=product.sku):
         raise HTTPException(status_code=400, detail="SKU already exists")
 
@@ -47,7 +55,13 @@ def read_product(product_id: int, db: Session = Depends(get_db)):
     return db_product
 
 @router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_product(product_id: int, db: Session = Depends(get_db)):
+def delete_product(
+    product_id: int, 
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_admin_user)
+):
+    if not current_admin:
+        raise HTTPException(status_code=403, detail="Not authorized to delete product")
     db_product = crud_product.get_product(db, product_id=product_id)
     if db_product is None:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -55,7 +69,15 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
     return None
 
 @router.put("/{product_id}", response_model=ProductResponse)
-def update_product(product_id: int, product_in: ProductUpdate, db: Session = Depends(get_db)):
+def update_product(
+    product_id: int, 
+    product_in: ProductUpdate, 
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_admin_user)
+):
+    if not current_admin:
+        raise HTTPException(status_code=403, detail="Not authorized to update product")
+
     db_product = crud_product.get_product(db, product_id=product_id)
     if db_product is None:
         raise HTTPException(status_code=404, detail="Product not found")

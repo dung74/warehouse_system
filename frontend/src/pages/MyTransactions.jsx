@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { transactionService } from '../services/transactionService';
-import { warehouseService } from '../services/warehouseService';
 import { productService } from '../services/productService';
 import { userService } from '../services/userService'; // THÊM IMPORT NÀY
 
 const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_BASE_URL;
 
-const Transactions = () => {
+const MyTransactions = () => {
     const user_id = parseInt(localStorage.getItem('user_id') || '0', 10);
+    const currentWarehouseId = parseInt(localStorage.getItem('warehouse_id'), 10);
+
     const [searchParams, setSearchParams] = useSearchParams();
     
     const page = parseInt(searchParams.get('page') || '1', 10);
@@ -32,10 +33,8 @@ const Transactions = () => {
 
     const [transactions, setTransactions] = useState([]);
     const [totalRows, setTotalRows] = useState(0);
-    const [warehouses, setWarehouses] = useState([]);
 
     const [formData, setFormData] = useState({
-        warehouse_id: '',
         transaction_type: 'IN',
     });
     const [selectedItems, setSelectedItems] = useState([]);
@@ -46,10 +45,6 @@ const Transactions = () => {
     const [showSuggestions, setShowSuggestions] = useState(false);
     const dropdownRef = useRef(null);
 
-    const [isWarehouseDetailOpen, setIsWarehouseDetailOpen] = useState(false);
-    const [warehouseDetail, setWarehouseDetail] = useState(null);
-    const [isLoadingWarehouse, setIsLoadingWarehouse] = useState(false);
-
     const [isProductDetailOpen, setIsProductDetailOpen] = useState(false);
     const [productDetail, setProductDetail] = useState(null);
     const [isLoadingProduct, setIsLoadingProduct] = useState(false);
@@ -58,10 +53,6 @@ const Transactions = () => {
     const [isUserDetailOpen, setIsUserDetailOpen] = useState(false);
     const [userDetail, setUserDetail] = useState(null);
     const [isLoadingUser, setIsLoadingUser] = useState(false);
-
-    useEffect(() => {
-        warehouseService.getAll().then(setWarehouses).catch(console.error);
-    }, []);
 
     useEffect(() => {
         fetchTransactions();
@@ -103,15 +94,25 @@ const Transactions = () => {
     }, []);
 
     const fetchTransactions = async () => {
+        if (!currentWarehouseId || isNaN(currentWarehouseId)) return;
+
         try {
-            const params = { skip: (page - 1) * limit, limit: limit };
+            const params = { 
+                skip: (page - 1) * limit, 
+                limit: limit,
+                warehouse_id: currentWarehouseId 
+            };
+            
             if (statusParam) params.status = statusParam;
             if (startDateParam) params.start_date = `${startDateParam}T00:00:00`;
             if (endDateParam) params.end_date = `${endDateParam}T23:59:59`;
 
             const data = await transactionService.getAll(params);
-            setTransactions(data.items || []);
+            
+            const strictMyTransactions = (data.items || []).filter(tx => tx.warehouse_id === currentWarehouseId);
+            setTransactions(strictMyTransactions);
             setTotalRows(data.total || 0);
+
         } catch (error) {
             console.error("Lỗi tải giao dịch:", error);
         }
@@ -157,12 +158,12 @@ const Transactions = () => {
 
     const handleSubmitDraft = async (e) => {
         e.preventDefault();
-        if (!formData.warehouse_id) return alert("Please select a warehouse.");
+        if (!currentWarehouseId) return alert("System error: Missing Warehouse ID.");
         if (selectedItems.length === 0) return alert("Please add at least one product to the transaction.");
 
         try {
             const payload = {
-                warehouse_id: parseInt(formData.warehouse_id),
+                warehouse_id: currentWarehouseId,
                 // user_id: user_id,
                 transaction_type: formData.transaction_type,
                 details: selectedItems.map(item => ({
@@ -174,7 +175,7 @@ const Transactions = () => {
             await transactionService.create(payload);
             alert("Draft transaction created successfully.");
             
-            setFormData({ warehouse_id: '', transaction_type: 'IN' });
+            setFormData({ transaction_type: 'IN' });
             setSelectedItems([]);
             updateURLParams({ page: 1 }); 
             fetchTransactions();
@@ -186,7 +187,6 @@ const Transactions = () => {
     const handleApprove = async (transactionId) => {
         if(!window.confirm("Are you sure you want to approve this transaction? Inventory quantities will be updated.")) return;
         try {
-                
             await transactionService.approve(transactionId);
             alert("Transaction approved and inventory updated successfully.");
             fetchTransactions();
@@ -208,19 +208,6 @@ const Transactions = () => {
         }
     };
 
-    const handleViewWarehouse = async (id) => {
-        setIsLoadingWarehouse(true);
-        try {
-            const data = await warehouseService.getDetail(id);
-            setWarehouseDetail(data);
-            setIsWarehouseDetailOpen(true);
-        } catch (error) {
-            alert(error.response?.data?.detail || "Unable to load warehouse details.");
-        } finally {
-            setIsLoadingWarehouse(false);
-        }
-    };
-
     const handleViewProduct = async (id) => {
         setIsLoadingProduct(true);
         try {
@@ -234,7 +221,7 @@ const Transactions = () => {
         }
     };
 
-    // --- HÀM XEM CHI TIẾT NGƯỜI DÙNG TẠO PHIẾU ---
+    // --- HÀM XEM CHI TIẾT NGƯỜI DÙNG ---
     const handleViewUser = async (userId) => {
         if (!userId) return;
         setIsLoadingUser(true);
@@ -250,11 +237,7 @@ const Transactions = () => {
     };
 
     const formatPrice = (price) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
-    const formatDate = (dateString) => {
-        if (!dateString) return "Not available";
-        return new Date(dateString).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
-    };
-
+    
     const getStatusBadge = (status) => {
         switch (status) {
             case 'DRAFT': return <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-semibold">DRAFT</span>;
@@ -267,69 +250,66 @@ const Transactions = () => {
     const totalPages = Math.ceil(totalRows / limit) || 1;
 
     return (
-        <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto bg-gray-50 min-h-screen relative">
+        <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto bg-gray-50 min-h-screen relative animate-fade-in">
             <div className="mb-6">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Transactions</h2>
-                    <p className="mt-1 text-sm text-gray-500">Create inbound and outbound transactions and track their status.</p>
+                    <h2 className="text-2xl font-bold text-gray-900">My Warehouse Transactions</h2>
+                    <p className="mt-1 text-sm text-gray-500">Manage inbound and outbound inventory for your assigned workplace.</p>
                 </div>
             </div>
 
-            <div className="bg-white p-6 shadow-sm ring-1 ring-gray-900/5 rounded-xl mb-8">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Create draft transaction</h3>
+            {/* === PHẦN 1: FORM TẠO PHIẾU NHÁP === */}
+            <div className="bg-white p-6 shadow-sm ring-1 ring-gray-900/5 rounded-xl mb-8 border border-gray-100">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-3">Create draft transaction</h3>
                 
-                <form onSubmit={handleSubmitDraft} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <form onSubmit={handleSubmitDraft} className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                     <div className="space-y-4 lg:col-span-1">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Transaction type</label>
                             <select 
                                 value={formData.transaction_type}
                                 onChange={(e) => setFormData({...formData, transaction_type: e.target.value})}
-                                className="block w-full rounded-md border border-gray-300 py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
+                                className="block w-full rounded-md border border-gray-300 py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium bg-gray-50"
                             >
-                                <option value="IN">Inbound</option>
-                                <option value="OUT">Outbound</option>
+                                <option value="IN">Inbound (Stock IN)</option>
+                                <option value="OUT">Outbound (Stock OUT)</option>
                             </select>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Warehouse</label>
-                            <select 
-                                required
-                                value={formData.warehouse_id}
-                                onChange={(e) => setFormData({...formData, warehouse_id: e.target.value})}
-                                className="block w-full rounded-md border border-gray-300 py-2 pl-3 pr-10 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                            >
-                                <option value="">Select a warehouse</option>
-                                {warehouses.map(w => (
-                                    <option key={w.id} value={w.id}>{w.name}</option>
-                                ))}
-                            </select>
+                        
+                        <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-4 mt-4">
+                            <div className="flex items-start">
+                                <span className="text-blue-500 mr-2">ℹ️</span>
+                                <div>
+                                    <h4 className="text-sm font-semibold text-blue-800">Target Warehouse</h4>
+                                    <p className="text-xs text-blue-600 mt-1">This transaction will be automatically recorded to your assigned warehouse (ID: {currentWarehouseId}).</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="space-y-4 lg:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Add products</label>
+                    <div className="space-y-4 lg:col-span-3">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Search & Add products</label>
                         <div className="relative" ref={dropdownRef}>
                             <div className="relative">
                                 <input 
-                                    type="text" placeholder="Search by name or SKU" 
+                                    type="text" placeholder="Type product name or SKU..." 
                                     value={productSearchTerm}
                                     onChange={(e) => setProductSearchTerm(e.target.value)}
-                                    className="block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                    className="block w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-sm focus:bg-white transition-colors"
                                     onFocus={() => { if(productSuggestions.length > 0) setShowSuggestions(true); }}
                                 />
                             </div>
 
                             {showSuggestions && productSuggestions.length > 0 && (
-                                <ul className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-sm ring-1 ring-black ring-opacity-5 overflow-auto">
+                                <ul className="absolute z-10 mt-1 w-full bg-white shadow-xl max-h-60 rounded-lg py-1 text-sm ring-1 ring-black ring-opacity-5 overflow-auto border border-gray-100">
                                     {productSuggestions.map((product) => (
                                         <li 
                                             key={product.id}
                                             onClick={() => handleSelectProduct(product)}
-                                            className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-indigo-50 text-gray-900 flex justify-between"
+                                            className="cursor-pointer select-none relative py-3 pl-4 pr-9 hover:bg-indigo-50 text-gray-900 flex justify-between border-b border-gray-50 last:border-0"
                                         >
                                             <span className="block font-medium truncate">{product.name}</span>
-                                            <span className="block text-xs text-gray-500 ml-2">SKU: {product.sku}</span>
+                                            <span className="block text-xs text-gray-500 ml-2 bg-gray-100 px-2 py-0.5 rounded">SKU: {product.sku}</span>
                                         </li>
                                     ))}
                                 </ul>
@@ -337,23 +317,23 @@ const Transactions = () => {
                         </div>
 
                         {selectedItems.length > 0 ? (
-                            <div className="mt-4 border border-gray-200 rounded-lg overflow-hidden">
+                            <div className="mt-4 border border-gray-200 rounded-lg overflow-hidden shadow-sm">
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                         <tr>
-                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Product</th>
-                                            <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 w-32">Quantity</th>
-                                            <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 w-16">Remove</th>
+                                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Product Details</th>
+                                            <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase w-32">Quantity</th>
+                                            <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase w-20">Action</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="bg-white divide-y divide-gray-200">
+                                    <tbody className="bg-white divide-y divide-gray-100">
                                         {selectedItems.map((item) => (
-                                            <tr key={item.product_id}>
-                                                <td className="px-4 py-2 text-sm text-gray-900">
+                                            <tr key={item.product_id} className="hover:bg-gray-50/50">
+                                                <td className="px-4 py-3 text-sm text-gray-900">
                                                     <div className="font-medium">{item.name}</div>
-                                                    <div className="text-xs text-gray-500">SKU: {item.sku}</div>
+                                                    <div className="text-xs text-gray-500 mt-0.5">SKU: {item.sku}</div>
                                                 </td>
-                                                <td className="px-4 py-2 text-center">
+                                                <td className="px-4 py-3 text-center">
                                                     <input 
                                                         type="number" 
                                                         min="1"
@@ -364,12 +344,14 @@ const Transactions = () => {
                                                                 handleUpdateQuantity(item.product_id, 1);
                                                             }
                                                         }}
-                                                        className="w-20 text-center rounded-md border border-gray-300 py-1 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                                        className="w-20 text-center rounded-md border border-gray-300 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium bg-gray-50"
                                                     />
                                                 </td>
-                                                <td className="px-4 py-2 text-center">
-                                                    <button type="button" onClick={() => handleRemoveItem(item.product_id)} className="text-red-500 hover:text-red-700">
-                                                        Remove
+                                                <td className="px-4 py-3 text-center">
+                                                    <button type="button" onClick={() => handleRemoveItem(item.product_id)} className="text-red-500 hover:text-red-700 p-1.5 hover:bg-red-50 rounded transition-colors">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                                        </svg>
                                                     </button>
                                                 </td>
                                             </tr>
@@ -378,15 +360,15 @@ const Transactions = () => {
                                 </table>
                             </div>
                         ) : (
-                            <div className="mt-3 p-4 bg-gray-50 border border-dashed border-gray-300 rounded-md flex flex-col items-center justify-center text-gray-500">
+                            <div className="mt-3 p-6 bg-gray-50 border border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-400">
                                 <span className="text-sm">No products selected. Search to add products to this transaction.</span>
                             </div>
                         )}
 
-                        <div className="pt-4 flex justify-end">
+                        <div className="pt-2 flex justify-end">
                             <button 
                                 type="submit" 
-                                className="inline-flex items-center justify-center py-2 px-6 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                                className="inline-flex items-center justify-center py-2.5 px-6 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
                             >
                                 Save draft
                             </button>
@@ -395,7 +377,8 @@ const Transactions = () => {
                 </form>
             </div>
 
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Transaction list</h3>
+            {/* === PHẦN 2: LỊCH SỬ PHIẾU KHO === */}
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Transaction history</h3>
             
             <div className="bg-white p-4 shadow-sm ring-1 ring-gray-900/5 rounded-xl mb-6 flex flex-col md:flex-row gap-4 items-end">
                 <div className="flex-1">
@@ -403,7 +386,7 @@ const Transactions = () => {
                     <select 
                         value={statusParam}
                         onChange={(e) => updateURLParams({ status: e.target.value, page: 1 })}
-                        className="block w-full border border-gray-300 rounded-md py-2 px-3 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        className="block w-full border border-gray-300 rounded-md py-2 px-3 text-sm focus:ring-indigo-500 focus:border-indigo-500 bg-white"
                     >
                         <option value="">All statuses</option>
                         <option value="DRAFT">Draft</option>
@@ -418,7 +401,7 @@ const Transactions = () => {
                         type="date" 
                         value={startDateParam}
                         onChange={(e) => updateURLParams({ start_date: e.target.value, page: 1 })}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500 bg-white"
                     />
                 </div>
 
@@ -428,68 +411,59 @@ const Transactions = () => {
                         type="date" 
                         value={endDateParam}
                         onChange={(e) => updateURLParams({ end_date: e.target.value, page: 1 })}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500 bg-white"
                     />
                 </div>
                 
                 <button 
                     onClick={() => setSearchParams({})} 
-                    className="inline-flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
+                    className="inline-flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none transition-colors"
                 >
                     Clear filters
                 </button>
             </div>
 
-            <div className="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-xl overflow-hidden">
+            <div className="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-xl overflow-hidden border border-gray-100">
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50/50">
+                        <thead className="bg-gray-50">
                             <tr>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Code / time</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Type</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Warehouse</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase w-48">Code & Time</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase w-32">Type</th>
                                 {/* THÊM CỘT CREATED BY Ở ĐÂY */}
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Created By</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Items</th>
-                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase w-40">Created By</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Product details</th>
+                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase w-40">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200 bg-white">
+                        <tbody className="divide-y divide-gray-100 bg-white">
                             {transactions.length === 0 ? (
                                 <tr>
-                                    <td colSpan="6" className="px-6 py-12 text-center text-sm text-gray-500">
-                                        No transactions match the selected filters.
+                                    <td colSpan="5" className="px-6 py-16 text-center text-sm text-gray-500">
+                                        <div className="flex flex-col items-center justify-center">
+                                            <span className="text-4xl mb-3">📭</span>
+                                            <span>No transactions found for your warehouse.</span>
+                                        </div>
                                     </td>
                                 </tr>
                             ) : (
                                 transactions.map(tx => {
-                                    const wName = warehouses.find(w => w.id === tx.warehouse_id)?.name || `Warehouse #${tx.warehouse_id}`;
                                     const isIn = tx.transaction_type === 'IN';
                                     
                                     return (
-                                        <tr key={tx.id} className="hover:bg-gray-50/50">
+                                        <tr key={tx.id} className="hover:bg-blue-50/30 transition-colors">
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="text-sm font-bold text-gray-900">{tx.code}</div>
+                                                <div className="text-sm font-bold text-gray-900 font-mono">{tx.code}</div>
                                                 <div className="text-xs text-gray-500 mt-1">{new Date(tx.created_at).toLocaleString('vi-VN')}</div>
                                             </td>
                                             
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold mb-1 ${
+                                                <div className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold mb-1.5 ${
                                                     isIn ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-orange-50 text-orange-700 border border-orange-200'
                                                 }`}>
                                                     {isIn ? 'INBOUND' : 'OUTBOUND'}
                                                 </div>
                                                 <div>{getStatusBadge(tx.status)}</div>
-                                            </td>
-                                            
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                <button 
-                                                    onClick={() => handleViewWarehouse(tx.warehouse_id)}
-                                                    disabled={isLoadingWarehouse}
-                                                    className="text-blue-600 hover:text-blue-800 hover:underline transition-colors text-left disabled:opacity-50"
-                                                >
-                                                    {wName}
-                                                </button>
                                             </td>
 
                                             {/* --- THÊM Ô DỮ LIỆU CREATED BY --- */}
@@ -509,39 +483,41 @@ const Transactions = () => {
                                             </td>
                                             
                                             <td className="px-6 py-4">
-                                                <div className="flex flex-wrap gap-2 max-w-md">
+                                                <div className="flex flex-wrap gap-2 max-w-lg">
                                                     {tx.details?.map(detail => (
-                                                        <span key={detail.id} className="inline-flex items-center px-2.5 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200 shadow-sm">
+                                                        <span key={detail.id} className="inline-flex items-center px-2.5 py-1.5 rounded-md text-xs font-medium bg-gray-50 text-gray-700 border border-gray-200">
                                                             <button 
                                                                 onClick={() => handleViewProduct(detail.product_id || detail.product?.id)}
                                                                 className="hover:text-indigo-600 hover:underline text-left mr-1 transition-colors"
                                                             >
                                                                 {detail.product?.name || `SP #${detail.product_id}`}
                                                             </button>
-                                                            <span className="font-bold text-indigo-600 ml-1">x{detail.quantity}</span>
+                                                            <span className="font-bold text-indigo-600 ml-1 bg-white px-1 rounded shadow-sm border border-gray-100">
+                                                                x{detail.quantity}
+                                                            </span>
                                                         </span>
                                                     ))}
                                                 </div>
                                                 {tx.cancellation_reason && (
-                                                    <div className="mt-2 text-xs text-red-600 flex items-center bg-red-50 p-1.5 rounded border border-red-100 w-fit">
-                                                        Reason: {tx.cancellation_reason}
+                                                    <div className="mt-3 text-xs text-red-600 flex items-center bg-red-50/50 p-2 rounded-md border border-red-100/50 w-fit">
+                                                        <span className="font-semibold mr-1">Reason:</span> {tx.cancellation_reason}
                                                     </div>
                                                 )}
                                             </td>
                                             
                                             <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                                                <div className="flex justify-center gap-2">
+                                                <div className="flex flex-col gap-2 items-center">
                                                     {tx.status === 'DRAFT' && (
                                                         <>
                                                             <button 
                                                                 onClick={() => handleApprove(tx.id)}
-                                                                className="text-white bg-green-500 hover:bg-green-600 px-3 py-1.5 text-xs rounded-md transition-colors shadow-sm"
+                                                                className="w-full text-white bg-green-500 hover:bg-green-600 px-3 py-1.5 text-xs rounded-md transition-colors shadow-sm font-semibold"
                                                             >
                                                                 Approve
                                                             </button>
                                                             <button 
                                                                 onClick={() => handleCancel(tx.id)}
-                                                                className="text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 text-xs rounded-md transition-colors shadow-sm"
+                                                                className="w-full text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 text-xs rounded-md transition-colors shadow-sm font-semibold"
                                                             >
                                                                 Cancel
                                                             </button>
@@ -550,7 +526,7 @@ const Transactions = () => {
                                                     {tx.status === 'APPROVED' && (
                                                         <button 
                                                             onClick={() => handleCancel(tx.id)}
-                                                            className="text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded-md transition-colors flex items-center text-xs"
+                                                            className="w-full text-red-600 bg-white hover:bg-red-50 border border-red-200 px-3 py-1.5 rounded-md transition-colors text-xs font-semibold"
                                                         >
                                                             Cancel transaction
                                                         </button>
@@ -569,9 +545,9 @@ const Transactions = () => {
                 </div>
 
                 {totalPages > 1 && (
-                    <div className="bg-gray-50 px-6 py-3 border-t border-gray-200 flex items-center justify-between">
+                    <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between rounded-b-xl gap-4">
                         <p className="text-sm text-gray-700">
-                            Page <span className="font-medium">{page}</span> / <span className="font-medium">{totalPages}</span>
+                            Showing <span className="font-medium">{(page - 1) * limit + (transactions.length > 0 ? 1 : 0)}</span> to <span className="font-medium">{Math.min(page * limit, totalRows)}</span> of <span className="font-medium">{totalRows}</span>
                         </p>
                         <div className="flex items-center gap-2">
                             <button 
@@ -579,8 +555,11 @@ const Transactions = () => {
                                 disabled={page === 1}
                                 className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
                             >
-                                Previous
+                                Prev
                             </button>
+                            <span className="text-sm text-gray-600 px-2 font-medium">
+                                {page} / {totalPages}
+                            </span>
                             <button 
                                 onClick={() => updateURLParams({ page: Math.min(totalPages, page + 1) })}
                                 disabled={page === totalPages}
@@ -593,100 +572,9 @@ const Transactions = () => {
                 )}
             </div>
 
-            {/* --- MODAL CHI TIẾT KHO (DÀNH CHO ADMIN) --- */}
-            {isWarehouseDetailOpen && warehouseDetail && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-                    <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-4xl relative max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
-                        <button onClick={() => setIsWarehouseDetailOpen(false)} className="absolute top-4 right-4 text-sm text-gray-500 hover:text-gray-900 transition-colors">Close</button>
-                        <div className="mb-4 border-b pb-4 shrink-0 pr-8">
-                            <h3 className="text-2xl font-bold text-gray-800">{warehouseDetail.name}</h3>
-                            <div className="flex gap-2 mt-2">
-                                <span className={`px-2 py-1 text-xs font-semibold rounded ${warehouseDetail.warehouse_type === 'CENTRAL' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                                    {warehouseDetail.warehouse_type === 'CENTRAL' ? 'Central' : 'Branch'}
-                                </span>
-                                <span className={`px-2 py-1 text-xs font-semibold rounded ${warehouseDetail.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                    {warehouseDetail.is_active ? 'Active' : 'Inactive'}
-                                </span>
-                            </div>
-                        </div>
-                        <div className="overflow-y-auto pr-2 grid grid-cols-1 lg:grid-cols-3 gap-6 text-sm text-gray-700">
-                            <div className="lg:col-span-1 space-y-6">
-                                <div>
-                                    <h4 className="font-bold text-lg mb-3 text-gray-800">Warehouse structure</h4>
-                                    {warehouseDetail.warehouse_type === 'BRANCH' && (
-                                        <p className="bg-gray-50 p-3 rounded border border-gray-100">
-                                            <span className="font-medium">Parent warehouse: </span><br/>
-                                            <span className="text-blue-600 font-semibold">{warehouseDetail.parent?.name || `ID #${warehouseDetail.parent_id}`}</span>
-                                        </p>
-                                    )}
-                                    {warehouseDetail.warehouse_type === 'CENTRAL' && (
-                                        <div className="bg-gray-50 p-3 rounded border border-gray-100">
-                                            <p className="font-medium mb-2">Branches ({warehouseDetail.branches?.length || 0})</p>
-                                            <ul className="space-y-1">
-                                                {warehouseDetail.branches?.length > 0 
-                                                    ? warehouseDetail.branches.map(b => (
-                                                        <li key={b.id} className="text-gray-700 flex items-center gap-2">
-                                                            <span className="w-1.5 h-1.5 bg-blue-400 rounded-full"></span> 
-                                                            {b.name} {!b.is_active && <span className="text-red-500 text-xs">(Inactive)</span>}
-                                                        </li>
-                                                    ))
-                                                    : <li className="text-gray-500 italic">No branches available</li>
-                                                }
-                                            </ul>
-                                        </div>
-                                    )}
-                                </div>
-                                <div>
-                                    <h4 className="font-bold text-lg mb-3 text-gray-800">Staff ({warehouseDetail.users?.length || 0})</h4>
-                                    <ul className="space-y-2 max-h-64 overflow-y-auto">
-                                        {warehouseDetail.users?.length > 0 ? warehouseDetail.users.map(u => (
-                                            <li key={u.id} className="bg-gray-50 p-3 rounded border border-gray-100 flex flex-col">
-                                                <span className="font-semibold text-gray-800">{u.full_name || 'Name not available'}</span>
-                                                <span className="text-gray-500 text-xs mt-1">{u.email || 'No email available'}</span>
-                                            </li>
-                                        )) : <li className="text-gray-500 italic">No staff assigned</li>}
-                                    </ul>
-                                </div>
-                            </div>
-                            <div className="lg:col-span-2">
-                                <h4 className="font-bold text-lg mb-3 text-gray-800">Inventory at this warehouse ({warehouseDetail.stocks?.length || 0} items)</h4>
-                                <div className="border border-gray-200 rounded-lg overflow-hidden max-h-[400px] flex flex-col">
-                                    <div className="overflow-y-auto">
-                                        <table className="w-full text-left text-sm">
-                                            <thead className="bg-gray-100 text-gray-700 sticky top-0 shadow-sm">
-                                                <tr>
-                                                    <th className="p-3 font-semibold">SKU</th>
-                                                    <th className="p-3 font-semibold">Product name</th>
-                                                    <th className="p-3 font-semibold text-right">Quantity</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-gray-100">
-                                                {warehouseDetail.stocks?.length > 0 ? (
-                                                    warehouseDetail.stocks.map(s => (
-                                                        <tr key={s.id} className="hover:bg-blue-50 bg-white">
-                                                            <td className="p-3 text-gray-600 font-medium">{s.product?.sku || '-'}</td>
-                                                            <td className="p-3 text-gray-800">{s.product?.name || '-'}</td>
-                                                            <td className="p-3 text-right">
-                                                                <span className="bg-blue-100 text-blue-700 py-1 px-3 rounded-full font-bold">{s.quantity}</span>
-                                                            </td>
-                                                        </tr>
-                                                    ))
-                                                ) : (
-                                                    <tr><td colSpan="3" className="p-8 text-center text-gray-500 bg-white">This warehouse is currently empty.</td></tr>
-                                                )}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
             {/* --- MODAL CHI TIẾT SẢN PHẨM --- */}
             {isProductDetailOpen && productDetail && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-60 p-4 backdrop-blur-sm">
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl relative overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
                         <button onClick={() => setIsProductDetailOpen(false)} className="absolute top-4 right-4 px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded text-gray-600 z-10 transition-colors">Close</button>
                         <div className="flex flex-col md:flex-row overflow-y-auto">
@@ -710,6 +598,14 @@ const Transactions = () => {
                                     </div>
                                 </div>
                                 <div className="text-2xl font-bold text-blue-600">{formatPrice(productDetail.base_price || 0)}</div>
+                                <div className="space-y-3 text-sm text-gray-700">
+                                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                                        <span className="font-semibold block mb-2 text-gray-800">Description</span>
+                                        <p className="text-gray-600 whitespace-pre-line leading-relaxed max-h-32 overflow-y-auto custom-scrollbar">
+                                            {productDetail.description || <span className="italic text-gray-400">No description available.</span>}
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -780,4 +676,4 @@ const Transactions = () => {
     );
 };
 
-export default Transactions;
+export default MyTransactions;

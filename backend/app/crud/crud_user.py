@@ -12,6 +12,12 @@ def get_user_by_email(db: Session, email: str):
 def read_detail_user(db: Session, user_id: int):
     return db.query(User).filter(User.id == user_id).first()
 
+def get_id_warehouse_by_user_id(db: Session, user_id: int):
+    user = db.query(User).filter(User.id == user_id).first()
+    if user:
+        return user.warehouse_id
+    return None
+
 def create_user(db: Session, user: UserCreate):
     hashed_password = get_password_hash(user.password)
     db_user = User(

@@ -6,8 +6,10 @@ import Login from "./pages/Login";
 import Categories from "./pages/Categories";
 import Products from "./pages/Products";
 import Warehouses from "./pages/Warehouses";
+import MyWarehouse from "./pages/MyWarehouse";
 import Stocks from "./pages/Stocks";
 import Transactions from "./pages/Transactions";
+import MyTransactions from "./pages/MyTransactions";
 import Users from "./pages/Users";
 
 const Dashboard = () => (
@@ -49,7 +51,18 @@ const ProtectedRoute = ({ children }) => {
     return children;
 };
 
+const AdminRoute = ({ children }) => {
+    const userRole = localStorage.getItem('user_role');
+    if (userRole !== '1') return <Navigate to="/dashboard" replace />;
+    return children;
+};
+
 function App() {
+    const userRole = localStorage.getItem('user_role');
+    const warehouseId = localStorage.getItem('warehouse_id');
+
+    const isAdmin = userRole === '1';
+
     return (
         <BrowserRouter>
             <Routes>
@@ -65,11 +78,26 @@ function App() {
                 >
                     <Route index element={<Navigate to="/dashboard" replace />} />
                     <Route path="dashboard" element={<Dashboard />} />
+                    <Route path="warehouses" element={
+                        <AdminRoute>
+                            <Warehouses />
+                        </AdminRoute>
+                    } />
+                    
+                    <Route path="my-warehouse" element={<MyWarehouse />} />
+                    
+                    <Route path="transactions" element={
+                        <AdminRoute>
+                            <Transactions />
+                        </AdminRoute>
+                    } />
+                    <Route path="my-transactions" element={<MyTransactions />} />
+
                     <Route path="categories" element={<Categories />} />
                     <Route path="products" element={<Products />} />
-                    <Route path="warehouses" element={<Warehouses />} />
                     <Route path="stocks" element={<Stocks />} />
-                    <Route path="transactions" element={<Transactions />} />
+                   
+                    
                     <Route path="users" element={<Users />} />
                 </Route>
 
@@ -78,4 +106,5 @@ function App() {
         </BrowserRouter>
     );
 };
+
 export default App;
