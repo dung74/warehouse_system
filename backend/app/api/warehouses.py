@@ -1,8 +1,8 @@
-from typing import List
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.orm import  Session
 from app.crud import crud_warehouse
-from app.schemas.warehouse import WarehouseResponse, WarehouseCreate
+from app.schemas.warehouse import WarehouseResponse, WarehouseCreate, WarehouseDetailResponse, WarehouseUpdate
 from app.db.session import get_db
 
 router = APIRouter(prefix="/warehouses", tags=["Warehouses"])
@@ -13,5 +13,32 @@ def create_warehouse(warehouse: WarehouseCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/", response_model=List[WarehouseResponse])
-def read_warehouses(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return crud_warehouse.get_warehouses(db, skip=skip, limit=limit)
+def read_warehouses(
+    skip: int = 0, 
+    limit: int = 100, 
+    name: Optional[str] = Query(None),
+    parent_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db)
+):
+    return crud_warehouse.get_warehouses(db=db, skip=skip, limit=limit, name=name, parent_id=parent_id)
+
+@router.get("/{warehouse_id}", response_model=WarehouseDetailResponse)
+def read_warehouse(warehouse_id: int, db: Session = Depends(get_db)):
+    db_warehouse = crud_warehouse.get_warehouse(db=db, warehouse_id=warehouse_id)
+    if db_warehouse is None:
+        raise HTTPException(status_code=404, detail="Warehouse not found")
+    return db_warehouse
+
+@router.put("/{warehouse_id}", response_model=WarehouseResponse)
+def update_warehouse(warehouse_id: int, warehouse_in: WarehouseUpdate, db: Session = Depends(get_db)):
+    db_warehouse = crud_warehouse.update_warehouse(db=db, warehouse_id=warehouse_id, warehouse_in=warehouse_in)
+    if db_warehouse is None:
+        raise HTTPException(status_code=404, detail="Warehouse not found")
+    return db_warehouse
+
+@router.delete("/{warehouse_id}")
+def delete_warehouse(warehouse_id: int, db: Session = Depends(get_db)):
+    db_warehouse = crud_warehouse.delete_warehouse(db=db, warehouse_id=warehouse_id)
+    if db_warehouse is None:
+        raise HTTPException(status_code=404, detail="Warehouse not found")
+    return {"detail": "Warehouse deleted successfully"}

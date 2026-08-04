@@ -23,3 +23,9 @@ class ChangePasswordRequest(BaseModel):
     old_password: str
     new_password: str
 
+class UpdateUserRequest(BaseModel):
+    username: Optional[str] = None
+    email: Optional[EmailStr] = None
+    full_name: Optional[str] = None
+    role_id: Optional[int] = None
+    warehouse_id: Optional[int] = None

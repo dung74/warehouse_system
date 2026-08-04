@@ -48,6 +48,8 @@ class Warehouse(Base):
     warehouse_type = Column(SQLEnum(WarehouseType), nullable=False)
     parent_id = Column(Integer, ForeignKey("warehouses.id"), nullable=True)
 
+    is_active = Column(Boolean, default=True)
+
     parent = relationship("Warehouse", remote_side=[id], backref="branches")
     users = relationship("User", back_populates="warehouse")
     stocks = relationship("Stock", back_populates="warehouse")
