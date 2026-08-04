@@ -5,6 +5,10 @@ export const productService = {
         const response = await api.get('/products/', { params });
         return response.data;
     },
+    getDetail: async (productId) => {
+        const response = await api.get(`/products/${productId}/`);
+        return response.data;
+    },
     create: async (data) => {
         const response = await api.post('/products/', data);
         return response.data;

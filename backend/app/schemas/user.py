@@ -1,24 +1,25 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from typing import Optional
 
 
 class UserBase(BaseModel):
     username: str
-    password: str
+    email: Optional[EmailStr] = None
+    full_name: Optional[str] = None
     role_id: int = 2 
-    # email: Optional[str] = None
     warehouse_id: Optional[int] = None
 
 class UserCreate(UserBase):
-    pass
+    password: str
 
-class UserResponse(BaseModel):
-    id: Optional[int] = None
-    username: str
-    role_id: int
-    # email: Optional[str] = None
-    warehouse_id: Optional[int] 
+class UserResponse(UserBase):
+    id: int
+    is_active: bool
 
     class Config:
         from_attributes = True
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
 

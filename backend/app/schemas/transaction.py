@@ -39,6 +39,7 @@ class InventoryTransactionResponse(InventoryTransactionBase):
     code: str
     status: TxStatus
     cancellation_reason: Optional[str] = None
+    user_id: int
     created_at: datetime
     details: list[TransactionDetailResponse]
 

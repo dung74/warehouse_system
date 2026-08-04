@@ -1,6 +1,6 @@
 
 
-from sqlalchemy import Boolean, Column, Integer , Float, ForeignKey, Index,  String,  Enum as SQLEnum, DateTime
+from sqlalchemy import Boolean, Column, Integer , Float, ForeignKey, Index,  String,  Enum as SQLEnum, DateTime, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, declarative_base
 import enum
@@ -23,6 +23,24 @@ class Role(Base):
 
     users = relationship("User", back_populates="role")
 
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+
+    email = Column(String, unique=True, index=True, nullable=True)
+    full_name = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    password_hash = Column(String, nullable=False)
+    role_id = Column(Integer, ForeignKey("roles.id"), nullable=False)
+    warehouse_id = Column(Integer, ForeignKey("warehouses.id"), nullable=True)
+
+    role = relationship("Role", back_populates="users")
+    warehouse = relationship("Warehouse", back_populates="users")
+    inventory_transactions = relationship("InventoryTransaction", backref="user")
+
 class Warehouse(Base):
     __tablename__ = "warehouses"
     id = Column(Integer, primary_key=True, index=True)
@@ -34,18 +52,6 @@ class Warehouse(Base):
     users = relationship("User", back_populates="warehouse")
     stocks = relationship("Stock", back_populates="warehouse")
     inventory_transactions = relationship("InventoryTransaction", backref="warehouse")
-
-class User(Base):
-    __tablename__ = "users"
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, index=True, nullable=False)
-    password_hash = Column(String, nullable=False)
-    role_id = Column(Integer, ForeignKey("roles.id"), nullable=False)
-    warehouse_id = Column(Integer, ForeignKey("warehouses.id"), nullable=False)
-
-    role = relationship("Role", back_populates="users")
-    warehouse = relationship("Warehouse", back_populates="users")
-    inventory_transactions = relationship("InventoryTransaction", backref="user")
 
 class Category(Base):
     __tablename__ = "categories"
@@ -63,6 +69,10 @@ class Product(Base):
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
     base_price = Column(Float, nullable=False)
     attributes = Column(JSONB, default={})
+
+    description = Column(Text, nullable=True)
+    image_path = Column(String, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(VN_TZ), nullable=False)
 
     category = relationship("Category", back_populates="products")
     stocks = relationship("Stock", back_populates="product")

@@ -1,11 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
+import ChangePasswordModal from './ChangePasswordModal';
 
 const Layout = () => {
     const navigate = useNavigate();
+    
+    // State quản lý đóng/mở Modal đổi mật khẩu
+    const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
-    // 1. ĐÃ CHUYỂN VÀO TRONG COMPONENT: Sẽ được cập nhật mỗi khi component render lại
+    // Sẽ được cập nhật mỗi khi component render lại
     const userRole = parseInt(localStorage.getItem('user_role') || '2', 10);
     const isAdmin = userRole === 1;
 
@@ -14,13 +18,13 @@ const Layout = () => {
         { path: '/transactions', label: 'Nhập / Xuất kho', icon: '🔄' },
         { path: '/stocks', label: 'Tồn kho', icon: '📦' },
         { path: '/products', label: 'Sản phẩm', icon: '🏷️' },
-        { path: '/categories', label: 'Danh mục', icon: '📁' },
-        { path: '/warehouses', label: 'Quản lý Kho', icon: '🏢' },
+        { path: '/categories', label: 'Danh mục', icon: '📂' },
+        { path: '/warehouses', label: 'Quản lý Kho', icon: '🏭' },
     ];
     
     // Nếu là Admin thì thêm menu Quản lý tài khoản
     if (isAdmin) {
-        menuItems.push({ path: '/users', label: 'Quản lý Tài khoản', icon: '👤' });
+        menuItems.push({ path: '/users', label: 'Quản lý Tài khoản', icon: '👥' });
     }
 
     const handleLogout = () => {
@@ -62,10 +66,10 @@ const Layout = () => {
                     ))}
                 </nav>
 
-                {/* Footer Sidebar - Thông tin User */}
+                {/* Footer Sidebar - Thông tin User & Actions */}
                 <div className="p-4 border-t border-slate-800">
-                    <div className="flex items-center px-4 py-3 mb-3 transition-colors cursor-pointer rounded-lg bg-slate-800 hover:bg-slate-700">
-                        {/* 2. HIỂN THỊ ĐỘNG ICON VÀ TÊN DỰA VÀO ROLE */}
+                    <div className="flex items-center px-4 py-3 mb-3 transition-colors rounded-lg bg-slate-800">
+                        {/* HIỂN THỊ ĐỘNG ICON VÀ TÊN DỰA VÀO ROLE */}
                         <div className={`flex items-center justify-center mr-3 font-bold rounded-full shadow-inner w-9 h-9 ${isAdmin ? 'bg-blue-500' : 'bg-green-500'}`}>
                             {isAdmin ? 'A' : 'S'}
                         </div>
@@ -79,13 +83,24 @@ const Layout = () => {
                         </div>
                     </div>
 
-                    {/* Nút Đăng xuất */}
-                    <button 
-                        onClick={handleLogout}
-                        className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-red-400 transition-colors border rounded-lg border-red-900/50 hover:bg-red-600 hover:text-white hover:border-red-600"
-                    >
-                        <span className="mr-2 text-base">🚪</span> Đăng xuất
-                    </button>
+                    {/* Các Nút Hành Động (Đổi mật khẩu / Đăng xuất) */}
+                    <div className="space-y-2">
+                        {/* Nút Đổi mật khẩu */}
+                        <button 
+                            onClick={() => setIsChangePasswordOpen(true)}
+                            className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-blue-400 transition-colors border rounded-lg border-blue-900/50 hover:bg-blue-600 hover:text-white hover:border-blue-600"
+                        >
+                            <span className="mr-2 text-base">🔑</span> Đổi mật khẩu
+                        </button>
+
+                        {/* Nút Đăng xuất */}
+                        <button 
+                            onClick={handleLogout}
+                            className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-red-400 transition-colors border rounded-lg border-red-900/50 hover:bg-red-600 hover:text-white hover:border-red-600"
+                        >
+                            <span className="mr-2 text-base">🚪</span> Đăng xuất
+                        </button>
+                    </div>
                 </div>
             </aside>
 
@@ -115,6 +130,12 @@ const Layout = () => {
                     </div>
                 </div>
             </main>
+
+            {/* Chèn Modal Đổi Mật Khẩu */}
+            <ChangePasswordModal 
+                isOpen={isChangePasswordOpen} 
+                onClose={() => setIsChangePasswordOpen(false)} 
+            />
         </div>
     );
 };
