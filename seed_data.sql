@@ -3,7 +3,6 @@
 -- 2. Thêm dữ liệu Roles (Vai trò)
 INSERT INTO roles (name) VALUES 
 ('Admin'), 
-('Manager'), 
 ('User');
 
 -- 3. Thêm dữ liệu Warehouses (Kho hàng)

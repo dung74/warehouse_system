@@ -1,6 +1,6 @@
 
 
-from sqlalchemy import Boolean, Column, Integer , Float, ForeignKey, Index,  String,  Enum as SQLEnum, DateTime, Text
+from sqlalchemy import Boolean, Column, Integer , Float, ForeignKey, Index,  String,  Enum as SQLEnum, DateTime, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, declarative_base
 import enum
@@ -83,14 +83,14 @@ class Product(Base):
 
     
 
-    is_active = Column(Boolean, default=True, nullable=False)  # Thêm cột is_active
+    is_active = Column(Boolean, default=True, nullable=False)  
 
     __table_args__ = (
         Index(
-            'ix_product_name_trgm',                  # Tên index
-            'name',                                  # Cột cần đánh index
-            postgresql_using='gin',                  # Dùng cơ chế GIN của Postgres
-            postgresql_ops={'name': 'gin_trgm_ops'}  # Thuật toán Trigram
+            'ix_product_name_trgm',                  
+            'name',                                  
+            postgresql_using='gin',                  
+            postgresql_ops={'name': 'gin_trgm_ops'}  
         ),
     )
 
@@ -103,6 +103,10 @@ class Stock(Base):
 
     product = relationship("Product", back_populates="stocks")
     warehouse = relationship("Warehouse", back_populates="stocks")
+
+    __table_args__ = (
+        UniqueConstraint('product_id', 'warehouse_id', name='uq_product_warehouse_stock'),
+    )
 
 
 

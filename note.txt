@@ -1,4 +1,4 @@
 
-
+sau khi chay docker xong. 
 
 cat seed_data.sql | docker exec -i wms_db psql -U postgres -d db_inventory
