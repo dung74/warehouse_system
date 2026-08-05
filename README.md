@@ -182,6 +182,7 @@ After the database container is running, import the sample data:
 ```bash
 cat seed_data.sql | docker exec -i wms_db psql -U postgres -d db_inventory
 ```
+admin acount: 'admin'  mk: '123456'
 
 ### 4) Open the application
 
