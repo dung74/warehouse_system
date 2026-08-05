@@ -46,13 +46,14 @@ def create_transaction(
 @router.post("/{transaction_id}/approve", response_model=InventoryTransactionResponse)
 def approve_transaction(
     transaction_id: int,
+    warehouse_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try: 
-        # if current_user.role_id != 1:
-        # if current_user.warehouse_id != schema.warehouse_id:
-        #         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is not authorized to approve transaction for this warehouse")
+        if current_user.role_id != 1:
+            if current_user.warehouse_id != warehouse_id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is not authorized to approve transaction for this warehouse")
         return crud_transaction.approve_transaction(db, transaction_id)
     except ValueError as e:
         db.rollback()
@@ -64,11 +65,15 @@ def approve_transaction(
 @router.post("/{transaction_id}/cancel", response_model=InventoryTransactionResponse)
 def cancel_transaction(
     transaction_id: int,
+    warehouse_id: int,
     payload: TransactionCancelRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
+        if current_user.role_id != 1:
+            if current_user.warehouse_id != warehouse_id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is not authorized to cancel transaction for this warehouse")
         return crud_transaction.cancel_transaction(db, transaction_id, payload.cancellation_reason)
     except ValueError as e:
         db.rollback()

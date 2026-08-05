@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { transactionService } from '../services/transactionService';
 import { productService } from '../services/productService';
-import { userService } from '../services/userService'; // THÊM IMPORT NÀY
+import { userService } from '../services/userService'; 
 
 const IMAGE_BASE_URL = import.meta.env.VITE_IMAGE_BASE_URL;
 
@@ -184,10 +184,10 @@ const MyTransactions = () => {
         }
     };
 
-    const handleApprove = async (transactionId) => {
+    const handleApprove = async (transactionId, warehouseId) => {
         if(!window.confirm("Are you sure you want to approve this transaction? Inventory quantities will be updated.")) return;
         try {
-            await transactionService.approve(transactionId);
+            await transactionService.approve(transactionId, warehouseId);
             alert("Transaction approved and inventory updated successfully.");
             fetchTransactions();
         } catch (error) {
@@ -195,12 +195,12 @@ const MyTransactions = () => {
         }
     };
 
-    const handleCancel = async (transactionId) => {
+    const handleCancel = async (transactionId, warehouseId) => {
         const reason = window.prompt("Enter a reason for cancellation:");
         if (!reason) return; 
 
         try {
-            await transactionService.cancel(transactionId, reason);
+            await transactionService.cancel(transactionId, warehouseId, reason);
             alert("Transaction canceled successfully.");
             fetchTransactions();
         } catch (error) {
@@ -510,13 +510,13 @@ const MyTransactions = () => {
                                                     {tx.status === 'DRAFT' && (
                                                         <>
                                                             <button 
-                                                                onClick={() => handleApprove(tx.id)}
+                                                                onClick={() => handleApprove(tx.id, tx.warehouse_id)}
                                                                 className="w-full text-white bg-green-500 hover:bg-green-600 px-3 py-1.5 text-xs rounded-md transition-colors shadow-sm font-semibold"
                                                             >
                                                                 Approve
                                                             </button>
                                                             <button 
-                                                                onClick={() => handleCancel(tx.id)}
+                                                                onClick={() => handleCancel(tx.id, tx.warehouse_id)}
                                                                 className="w-full text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 text-xs rounded-md transition-colors shadow-sm font-semibold"
                                                             >
                                                                 Cancel
@@ -525,7 +525,7 @@ const MyTransactions = () => {
                                                     )}
                                                     {tx.status === 'APPROVED' && (
                                                         <button 
-                                                            onClick={() => handleCancel(tx.id)}
+                                                            onClick={() => handleCancel(tx.id, tx.warehouse_id)}
                                                             className="w-full text-red-600 bg-white hover:bg-red-50 border border-red-200 px-3 py-1.5 rounded-md transition-colors text-xs font-semibold"
                                                         >
                                                             Cancel transaction
