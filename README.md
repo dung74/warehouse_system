@@ -1,66 +1,58 @@
 # Warehouse System
 
-Warehouse System is a full-stack warehouse and inventory management application. It helps businesses manage products, categories, warehouses, stock levels, users, and inventory transactions in one place.
+Warehouse System is a full-stack warehouse management application covering products, categories, warehouses, stock, inbound/outbound transactions, users, and an internal **RAG chatbot** for warehouse policy and process Q&A.
 
-The project is split into:
-- a **FastAPI** backend
-- a **React + Vite** frontend
-- a **PostgreSQL** database
-- **Docker Compose** for local deployment
+## Key Features
 
----
-
-## Features
-
-### Authentication & Authorization
-- Login with JWT access tokens
+### 1) Authentication & Authorization
+- Login with JWT access token
 - Role-based access control
 - Admin-only management areas
-- Password change feature for logged-in users
+- Password change for authenticated users
 
-### Product Management
-- Create, update, delete, and restore products
+### 2) Product Management
+- Create / update / soft-delete / restore products
 - Search products by name
 - Filter by category and active status
 - Paginated product listing
 - Product image upload
-- Dynamic product attributes stored as JSON
+- Dynamic product attributes (`JSONB`)
 
-### Category Management
+### 3) Category Management
 - List categories
 - Create new categories
-- Delete categories with protection against removing categories that still contain products
+- Delete categories with related-data constraints
 
-### Warehouse Management
+### 4) Warehouse Management
 - Create and update warehouses
 - View warehouse details
-- Search warehouses by name and parent warehouse
-- Support for central and branch warehouse structures
-- Soft delete via active/inactive status
+- Search by warehouse name and parent warehouse
+- Support central/branch warehouse model
 
-### Inventory / Stock Management
-- View inventory by warehouse
+### 5) Inventory Management
+- View stock by warehouse
 - Search stock by product name
-- Sort stock by quantity
+- Sort by quantity
 - Paginated stock listing
 
-### Inventory Transactions
-- Create draft inbound/outbound transactions
+### 6) Inbound/Outbound Transactions
+- Create draft transactions (IN/OUT)
 - Approve transactions to update stock automatically
-- Cancel approved transactions with stock reversal
-- Filter transactions by status, warehouse, and date range
-- Transaction ledger history for traceability
+- Cancel approved transactions with stock rollback
+- Filter by status, warehouse, and date
+- Inventory ledger history for traceability
 
-### User Management
-- List, create, edit, and deactivate users
-- Filter users by role, warehouse, and username
-- Prevent admins from deleting or editing themselves
+### 7) User Management
+- List / create / update / deactivate users
+- Filter by role, warehouse, and username
+- Prevent admins from updating or deleting themselves
 
-### File Upload
-- Upload product images
-- Store uploaded files under the backend static directory
-
----
+### 8) Internal Chatbot (RAG)
+- Floating chat widget in UI (`🤖 WMS Assistant`)
+- Backend endpoint: `POST /api/chat/` (JWT required)
+- Context retrieval from FAISS index (internal PDF documents)
+- Embeddings via Ollama model `qwen3-embedding:0.6b`
+- Response generation via Google Gemini (`gemini-2.5-flash`)
 
 ## Technology Stack
 
@@ -77,28 +69,22 @@ The project is split into:
 - SQLAlchemy 2
 - Pydantic
 - PostgreSQL
-- JWT authentication with `python-jose`
-- Password hashing with `passlib` / `bcrypt`
+- JWT (`python-jose`)
+- Password hashing (`passlib` + `bcrypt`)
+- LangChain + FAISS + Ollama Embeddings + Google GenAI
 
-### DevOps / Runtime
-- Docker
-- Docker Compose
-- Nginx for serving the frontend container
-
----
+### Runtime / Deployment
+- Docker + Docker Compose
+- Nginx (serving frontend build)
 
 ## System Roles
 
-The application uses role-based access:
+- **Admin**: full management permissions (warehouses, users, transactions, categories, products, etc.)
+- **User/Staff**: restricted to assigned warehouse scope and personal data access
 
-- **Admin**: full management access to warehouses, users, transactions, categories, and products
-- **Staff**: access limited to their own warehouse data and personal transaction views
-
-The seeded roles are:
+Default seeded roles:
 1. Admin
 2. User
-
----
 
 ## Project Structure
 
@@ -109,10 +95,12 @@ warehouse_system/
 │   │   ├── api/
 │   │   ├── core/
 │   │   ├── crud/
+│   │   ├── data/            # Internal policy/process PDFs + FAISS index
 │   │   ├── db/
 │   │   ├── models/
-│   │   └── schemas/
-│   ├── static/
+│   │   ├── schemas/
+│   │   └── services/        # RAG service
+│   ├── build_faiss.py       # Vector index build script
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── frontend/
@@ -128,70 +116,92 @@ warehouse_system/
 └── README.md
 ```
 
----
-
 ## Prerequisites
 
-- Docker and Docker Compose
-- Or, for local development:
+- Docker + Docker Compose (for containerized setup), or
+- Local development:
   - Python 3.10+
   - Node.js 18+
   - PostgreSQL 15+
+- For chatbot support:
+  - Ollama running (default port `11434`)
+  - Embedding model available: `qwen3-embedding:0.6b`
+  - Valid `GOOGLE_API_KEY`
 
----
+## Environment Configuration
 
-## Quick Start with Docker
+### Backend (`backend/.env`)
 
-### 1) Configure environment variables
-
-Update the backend environment file if needed. A typical Docker setup looks like this:
+See `backend/.env.example`:
 
 ```env
-SQLALCHEMY_DATABASE_URL=postgresql://<username>:<password>@db:5432/db_inventory
+SQLALCHEMY_DATABASE_URL=postgresql://<username>:<password>@localhost:5432/<database_name>
 SECRET_KEY=your_secret_key_here
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=123456
-POSTGRES_DB=db_inventory
+POSTGRES_USER=your_postgres_username
+POSTGRES_PASSWORD=password
+POSTGRES_DB=your_postgres_database_name
+
+GOOGLE_API_KEY=your_google_api_key_here
 ```
 
-The frontend uses:
+### Frontend (`frontend/.env`)
+
+See `frontend/.env.example`:
 
 ```env
 VITE_API_Base_URL=http://localhost:8000/api
 VITE_IMAGE_BASE_URL=http://localhost:8000/
 ```
 
-### 2) Start the stack
+## Quick Start with Docker
+
+### 1) Start Ollama (for chatbot)
+
+```bash
+ollama serve
+ollama pull qwen3-embedding:0.6b
+```
+
+> Note: backend in Docker connects to Ollama via `host.docker.internal:11434`.
+
+### 2) Build FAISS index from internal documents
+
+Put policy/process PDF files into `backend/app/data`, then run:
+
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python build_faiss.py
+```
+
+### 3) Start the stack
 
 ```bash
 docker compose up --build
 ```
 
-This starts:
-- PostgreSQL on port `5433`
-- FastAPI backend on port `8000`
-- React frontend on port `3000`
+Default services:
+- PostgreSQL: `localhost:5433`
+- Backend API: `localhost:8000`
+- Frontend: `localhost:3000`
 
-### 3) Seed the database
-
-After the database container is running, import the sample data:
+### 4) Seed sample data
 
 ```bash
 cat seed_data.sql | docker exec -i wms_db psql -U postgres -d db_inventory
 ```
-admin acount: 'admin'  mk: '123456'
 
-### 4) Open the application
+### 5) Access
 
 - Frontend: http://localhost:3000
-- Backend API docs: http://localhost:8000/docs
+- Swagger: http://localhost:8000/docs
 
----
-
-## Local Development Setup
+## Local Development (without Docker)
 
 ### Backend
 
@@ -200,8 +210,11 @@ cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+python build_faiss.py
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+> Note: in the current code, the RAG service calls Ollama via `host.docker.internal:11434`. If you run backend purely local and this host is not resolvable, update the Ollama endpoint for your environment.
 
 ### Frontend
 
@@ -213,47 +226,37 @@ npm run dev
 
 ### Database
 
-Make sure PostgreSQL is running, then:
-- create the database defined in `SQLALCHEMY_DATABASE_URL`
-- enable the `pg_trgm` extension using `db_init/01_extension.sql`
-- import `seed_data.sql` if you want the sample records
+- Create the database defined in `SQLALCHEMY_DATABASE_URL`.
+- Ensure extension `pg_trgm` is enabled (script in `db_init/01_extension.sql`).
+- Import `seed_data.sql` if you need sample data.
 
----
+## Default Seed Accounts
 
-## Default Accounts
-
-The seed file includes demo accounts with password `123456`:
+Default password: `123456`
 
 | Username | Role |
 | --- | --- |
 | `admin` | Admin |
 | `user` | User |
 
----
-
 ## Main API Modules
 
-- `auth` - login and current user info
-- `users` - user management and password change
-- `categories` - category management
-- `products` - product CRUD, filtering, restore
-- `warehouses` - warehouse CRUD and detail views
-- `stocks` - inventory listing
-- `transactions` - draft / approve / cancel inventory transactions
-- `upload` - image upload
+- `auth`: login and current-user info
+- `users`: user management and password change
+- `categories`: category management
+- `products`: product CRUD + filtering + restore
+- `warehouses`: warehouse management
+- `stocks`: stock viewing/search/filtering
+- `transactions`: create draft, approve, cancel inventory transactions
+- `upload`: product image upload
+- `chat`: internal chatbot Q&A
 
----
+## Chatbot Operation Notes
 
-## Notes
-
-- The backend serves uploaded files from `/static`.
-- Product name search uses PostgreSQL trigram indexing.
-- Inventory transactions automatically update stock and create ledger records when approved or reversed.
-- The frontend stores the JWT token and user profile data in `localStorage` for session persistence.
-
----
+- Chat route requires a valid token (`Depends(get_current_user)`).
+- If FAISS index is missing at `backend/app/data/faiss_index`, chatbot requests will fail.
+- Answer quality depends on PDF document content in `backend/app/data`.
 
 ## License
 
-No license has been defined for this project yet.
-
+No license has been defined yet.

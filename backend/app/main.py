@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from app.api import categories, products, warehouses, stocks, transactions, auth, users, upload
+from app.api import categories, products, warehouses, stocks, transactions, auth, users, upload, chat
 from app.models.all_models import Base
 from app.db.session import engine
 
@@ -27,6 +27,7 @@ app.include_router(transactions.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 app.include_router(upload.router, prefix="/api")
+app.include_router(chat.router, prefix="/api")
 
 @app.get("/")
 def read_root():

@@ -8,3 +8,11 @@ passlib[bcrypt]==1.7.4
 bcrypt==3.2.2
 python-multipart==0.0.20
 email-validator
+langchain
+langchain-google-genai
+langchain-community
+# chromadb
+pypdf
+faiss-cpu
+langchain-classic
+langchain-ollama

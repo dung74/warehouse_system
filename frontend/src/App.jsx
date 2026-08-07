@@ -11,6 +11,7 @@ import Stocks from "./pages/Stocks";
 import Transactions from "./pages/Transactions";
 import MyTransactions from "./pages/MyTransactions";
 import Users from "./pages/Users";
+import ChatWidget from "./pages/ChatWidget";
 
 const Dashboard = () => (
     <div className="space-y-6 animate-fade-in">
@@ -103,6 +104,8 @@ function App() {
 
                 <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+
+            <ChatWidget />
         </BrowserRouter>
     );
 };
