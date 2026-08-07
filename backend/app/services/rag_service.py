@@ -2,13 +2,11 @@ import os
 from dotenv import load_dotenv
 
 
-# Cập nhật import Ollama chuẩn xác (không bị DeprecationWarning)
 from langchain_ollama import OllamaEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 
-# Import các công cụ LCEL (LangChain Expression Language) chuẩn mới
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 
